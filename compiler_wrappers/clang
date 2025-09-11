@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# More aggressive wrapper to remove -G flag from compiler arguments
+ARGS=()
+for arg in "$@"; do
+  # Remove standalone -G flag
+  if [[ "$arg" == "-G" ]]; then
+    echo "Removing standalone -G flag from clang arguments" >&2
+    continue
+  fi
+  
+  # Remove -G flag that might be part of a combined argument
+  if [[ "$arg" == *"-G"* ]]; then
+    modified_arg=$(echo "$arg" | sed 's/-G//g')
+    echo "Removing -G flag from combined argument: $arg -> $modified_arg" >&2
+    ARGS+=("$modified_arg")
+  else
+    ARGS+=("$arg")
+  fi
+done
+
+# Add explicit architecture flags for simulator
+if [[ "$*" == *"iphonesimulator"* ]]; then
+  ARGS+=("-arch" "arm64")
+  echo "Added explicit architecture flag for simulator" >&2
+fi
+
+exec /usr/bin/clang "${ARGS[@]}"
