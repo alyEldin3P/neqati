@@ -22,12 +22,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _addressController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   String _selectedPosition = 'مقاول';
   final _positions = ['مقاول', 'مهندس', 'فني'];
-  
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
@@ -37,6 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _addressController.dispose();
     _nationalIdController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -61,6 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         address: _addressController.text,
         nationalId: _nationalIdController.text,
         phoneNumber: _phoneController.text,
+        email: _emailController.text,
         password: _passwordController.text,
         position: _selectedPosition,
       );
@@ -78,18 +81,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.deepTeal),
           onPressed: () => Navigator.pop(context),
         ),
-        title: AppText.title(
-          'تسجيل جديد',
-          color: AppColors.deepTeal,
-        ),
+        title: AppText.title('تسجيل جديد', color: AppColors.deepTeal),
         centerTitle: true,
       ),
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           } else if (state is AuthRegistrationSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -120,20 +120,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'الاسم',
                       hint: 'أدخل الاسم الكامل',
                       prefix: const Icon(Icons.person),
-                      validator: (value) => AppValidators.validateEmptyField(value, 'الاسم'),
+                      validator:
+                          (value) =>
+                              AppValidators.validateEmptyField(value, 'الاسم'),
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Address Field
                     AppFormField(
                       controller: _addressController,
                       label: 'العنوان',
                       hint: 'أدخل العنوان',
                       prefix: const Icon(Icons.location_on),
-                      validator: (value) => AppValidators.validateEmptyField(value, 'العنوان'),
+                      validator:
+                          (value) => AppValidators.validateEmptyField(
+                            value,
+                            'العنوان',
+                          ),
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // National ID Field
                     AppFormField(
                       controller: _nationalIdController,
@@ -144,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: AppValidators.validateNationalId,
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Phone Field
                     AppFormField(
                       controller: _phoneController,
@@ -156,6 +162,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     SizedBox(height: AppDimensions.medium),
                     
+                    // Email Field
+                    AppFormField(
+                      controller: _emailController,
+                      label: 'البريد الإلكتروني',
+                      hint: 'example@domain.com',
+                      prefix: const Icon(Icons.email),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: AppValidators.validateEmail,
+                    ),
+                    SizedBox(height: AppDimensions.medium),
+
                     // Position Dropdown
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -164,15 +181,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.white,
-                        borderRadius: BorderRadius.circular(AppDimensions.buttonRadius),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.buttonRadius,
+                        ),
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.work,
-                            color: AppColors.deepTeal,
-                          ),
+                          const Icon(Icons.work, color: AppColors.deepTeal),
                           SizedBox(width: AppDimensions.medium),
                           AppText('المنصب:', color: AppColors.lightText),
                           SizedBox(width: AppDimensions.medium),
@@ -181,16 +197,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               child: DropdownButton<String>(
                                 value: _selectedPosition,
                                 isExpanded: true,
-                                icon: const Icon(Icons.arrow_drop_down, color: AppColors.deepTeal),
-                                items: _positions.map((String position) {
-                                  return DropdownMenuItem<String>(
-                                    value: position,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: AppText(position),
-                                    ),
-                                  );
-                                }).toList(),
+                                icon: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: AppColors.deepTeal,
+                                ),
+                                items:
+                                    _positions.map((String position) {
+                                      return DropdownMenuItem<String>(
+                                        value: position,
+                                        child: Align(
+                                          alignment: Alignment.centerRight,
+                                          child: AppText(position),
+                                        ),
+                                      );
+                                    }).toList(),
                                 onChanged: (String? newValue) {
                                   if (newValue != null) {
                                     setState(() {
@@ -205,7 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Password Field
                     AppFormField(
                       controller: _passwordController,
@@ -225,7 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: AppValidators.validatePassword,
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Confirm Password Field
                     AppFormField(
                       controller: _confirmPasswordController,
@@ -242,22 +262,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         onPressed: _toggleConfirmPasswordVisibility,
                       ),
-                      validator: (value) => AppValidators.validatePasswordConfirmation(
-                        value,
-                        _passwordController.text,
-                      ),
+                      validator:
+                          (value) => AppValidators.validatePasswordConfirmation(
+                            value,
+                            _passwordController.text,
+                          ),
                     ),
                     SizedBox(height: AppDimensions.large),
-                    
+
                     // Register Button
                     state is AuthLoading
                         ? const Center(child: AppLoadingIndicator())
-                        : AppButton(
-                            text: 'تسجيل',
-                            onPressed: _register,
-                          ),
+                        : AppButton(text: 'تسجيل', onPressed: _register),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Login Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

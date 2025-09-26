@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Offer {
   final String id;
   final String title;
@@ -19,27 +17,27 @@ class Offer {
     required this.isActive,
   });
 
-  factory Offer.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory Offer.fromSupabase(Map<String, dynamic> data, String id) {
     return Offer(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      imageUrl: data['imageUrl'] ?? '',
-      startDate: (data['startDate'] as Timestamp).toDate(),
-      endDate: (data['endDate'] as Timestamp).toDate(),
-      isActive: data['isActive'] ?? false,
+      imageUrl: data['image_url'] ?? '',
+      startDate: DateTime.parse(data['start_date']),
+      endDate: DateTime.parse(data['end_date']),
+      isActive: data['is_active'] ?? false,
     );
   }
 
-  Map<String, dynamic> toMap() {
+
+  Map<String, dynamic> toSupabase() {
     return {
       'title': title,
       'description': description,
-      'imageUrl': imageUrl,
-      'startDate': Timestamp.fromDate(startDate),
-      'endDate': Timestamp.fromDate(endDate),
-      'isActive': isActive,
+      'image_url': imageUrl,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'is_active': isActive,
     };
   }
 }

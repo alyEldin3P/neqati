@@ -1,26 +1,37 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/presentation/widgets/app_text.dart';
+import 'package:neqati/features/admin/dashboard/presentation/screens/admin_dashboard_screen.dart';
+import 'package:neqati/features/admin/qr_management/presentation/screens/qr_codes_screen.dart';
+import 'package:neqati/features/admin/user_management/cubit/user_management_cubit.dart';
+import 'package:neqati/features/admin/user_management/presentation/screens/users_screen.dart';
+
+import '../../../../core/const/branches.dart';
 import '../../../../core/presentation/widgets/app_container.dart';
 import '../../../../core/presentation/widgets/app_loading_indicator.dart';
+import '../../../../core/presentation/widgets/app_text.dart';
 import '../../../../core/utils/app_colors.dart';
 import '../../../../core/utils/app_dimensions.dart';
 import '../../../auth/cubit/auth_cubit.dart';
 import '../../../auth/presentation/screens/profile_screen.dart';
+import '../../../gifts/cubit/gift_cubit.dart';
+import '../../../gifts/cubit/gift_state.dart';
+import '../../../gifts/cubit/scan_history_cubit.dart';
+import '../../../gifts/cubit/scan_history_state.dart';
 import '../../../gifts/presentation/screens/gifts_screen.dart';
 import '../../../gifts/presentation/screens/qr_scanner_screen.dart';
 import '../../../gifts/presentation/screens/scan_history_screen.dart';
 import '../../../levels/presentation/screens/levels_screen.dart';
+import '../../../offers/cubit/offers_cubit.dart';
+import '../../../offers/cubit/offers_state.dart';
 import '../../../offers/presentation/screens/offers_screen.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isAdmin;
-  
-  const HomeScreen({
-    Key? key,
-    this.isAdmin = false,
-  }) : super(key: key);
+
+  const HomeScreen({Key? key, this.isAdmin = false}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,28 +40,71 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
+  // Helper method to format time ago
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 0) {
+      return 'منذ ${difference.inDays} ${difference.inDays == 1 ? 'يوم' : 'أيام'}';
+    } else if (difference.inHours > 0) {
+      return 'منذ ${difference.inHours} ${difference.inHours == 1 ? 'ساعة' : 'ساعات'}';
+    } else if (difference.inMinutes > 0) {
+      return 'منذ ${difference.inMinutes} ${difference.inMinutes == 1 ? 'دقيقة' : 'دقائق'}';
+    } else {
+      return 'الآن';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    dev.log('HomeScreen: initState called, isAdmin: ${widget.isAdmin}');
+
+    // Load gifts and offers data for user home screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated && !widget.isAdmin) {
+        // Load gifts and offers for regular users
+        context.read<GiftCubit>().loadGifts(authState.user.id);
+        context.read<OffersCubit>().loadOffers();
+        
+        // Load scan history for recent scans section
+        context.read<UserScanHistoryCubit>().loadScanHistory(authState.user.id);
+      }
+    });
+
+    // Ensure auth state is up-to-date
+    if (widget.isAdmin) {
+      dev.log(
+        'HomeScreen: Admin user detected, setting up post-frame callback',
+      );
+      // If admin, make sure we're ready to show admin screens
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        dev.log('HomeScreen: Post-frame callback executed');
+        final authState = context.read<AuthCubit>().state;
+        dev.log('HomeScreen: Current auth state: ${authState.runtimeType}');
+
+        if (authState is AuthAuthenticated) {
+          dev.log(
+            'HomeScreen: User is authenticated, isAdmin: ${authState.isAdmin}',
+          );
+          // Refresh user data to ensure we have the latest admin status
+          context.read<AuthCubit>().refreshUserData();
+        } else {
+          dev.log(
+            'HomeScreen: User is not in authenticated state: ${authState.runtimeType}',
+          );
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.softWhite,
-      appBar: AppBar(
-        backgroundColor: AppColors.deepTeal,
-        elevation: 0,
-        title: AppText(
-          widget.isAdmin ? 'لوحة التحكم' : 'نقاطي',
-          color: AppColors.white,
-          fontWeight: FontWeight.bold,
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.white),
-            onPressed: () {
-              // TODO: Navigate to notifications screen
-            },
-          ),
-        ],
-      ),
+
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
           if (state is AuthAuthenticated) {
@@ -60,17 +114,31 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
       ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      bottomNavigationBar: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, authState) {
+          final isAdmin =
+              authState is AuthAuthenticated
+                  ? authState.isAdmin
+                  : widget.isAdmin;
+          return AppBottomNavBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            isAdmin: isAdmin,
+          );
         },
-        isAdmin: widget.isAdmin,
       ),
-      floatingActionButton: _currentIndex == 1 && !widget.isAdmin
-          ? FloatingActionButton(
+      floatingActionButton: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, authState) {
+          final isAdmin =
+              authState is AuthAuthenticated
+                  ? authState.isAdmin
+                  : widget.isAdmin;
+          if (_currentIndex == 1 && !isAdmin) {
+            return FloatingActionButton(
               backgroundColor: AppColors.deepTeal,
               child: const Icon(Icons.qr_code_scanner, color: AppColors.white),
               onPressed: () {
@@ -80,16 +148,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
-            )
-          : null,
+            );
+          }
+          // Return an empty container when no FAB is needed
+          return Container();
+        },
+      ),
     );
   }
 
   Widget _buildBody(AuthAuthenticated state) {
-    // For now, we'll just show different screens based on the navigation index
-    // Later, we'll implement proper navigation with separate screens
-    
-    if (widget.isAdmin) {
+    // Use the admin status from the state, which is more up-to-date than the widget property
+    final isAdmin = state.isAdmin;
+
+    if (isAdmin) {
       return _buildAdminScreen(state, _currentIndex);
     } else {
       return _buildUserScreen(state, _currentIndex);
@@ -112,16 +184,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAdminScreen(AuthAuthenticated state, int index) {
+    dev.log('HomeScreen: Building admin screen with index: $index');
     switch (index) {
       case 0:
+        dev.log('HomeScreen: Building admin dashboard');
         return _buildAdminDashboard(state);
       case 1:
+        dev.log('HomeScreen: Building users management');
         return _buildUsersManagement(state);
       case 2:
+        dev.log('HomeScreen: Building QR codes management');
         return _buildQRCodesManagement(state);
       case 3:
+        dev.log('HomeScreen: Building settings screen');
         return _buildSettingsScreen(state);
       default:
+        dev.log('HomeScreen: Building default admin dashboard');
         return _buildAdminDashboard(state);
     }
   }
@@ -131,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final userData = state.userData;
     final points = userData['points'] as int? ?? 0;
     final level = userData['level'] as String? ?? 'مبتدئ';
-    
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(AppDimensions.large),
       child: Column(
@@ -143,19 +221,14 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppColors.deepTeal,
           ),
           SizedBox(height: AppDimensions.small),
-          AppText(
-            'نتمنى لك يوم سعيد',
-            color: AppColors.lightText,
-          ),
+          AppText('نتمنى لك يوم سعيد', color: AppColors.lightText),
           SizedBox(height: AppDimensions.large),
-          
+
           // Points card
           GestureDetector(
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const LevelsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const LevelsScreen()),
               );
             },
             child: AppContainer(
@@ -166,18 +239,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      AppText(
-                        'نقاطك الحالية',
-                        color: AppColors.white,
-                      ),
+                      AppText('نقاطك الحالية', color: AppColors.white),
                       Row(
                         children: [
-                          AppText(
-                            'المستوى: $level',
+                          AppText('المستوى: $level', color: AppColors.white),
+                          SizedBox(width: AppDimensions.tiny),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 12,
                             color: AppColors.white,
                           ),
-                          SizedBox(width: AppDimensions.tiny),
-                          Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.white),
                         ],
                       ),
                     ],
@@ -200,167 +271,333 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(height: AppDimensions.large),
-          
-          // Recent scans
-          AppText.subtitle(
-            'آخر عمليات المسح',
-            color: AppColors.deepTeal,
-          ),
+
+          // Available branches
+          AppText.subtitle('الفروع المتاحة', color: AppColors.deepTeal),
           SizedBox(height: AppDimensions.medium),
-          
-          // Placeholder for recent scans
-          AppContainer(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.lightTeal,
-                child: Icon(Icons.qr_code, color: AppColors.deepTeal),
+
+          // Branches from enum
+          ...Branch.values.map((branch) => Padding(
+            padding: EdgeInsets.only(bottom: AppDimensions.small),
+            child: AppContainer(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.lightTeal,
+                  child: Icon(Icons.location_on, color: AppColors.deepTeal),
+                ),
+                title: AppText(branch.name, fontWeight: FontWeight.bold),
+                subtitle: AppText('فرع رقم ${branch.id}', isSmall: true),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.deepTeal,
+                ),
+                onTap: () {
+                  // Navigate to QR scanner for this branch
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const QRScannerScreen(),
+                    ),
+                  );
+                },
               ),
-              title: AppText('فرع الرياض', fontWeight: FontWeight.bold),
-              subtitle: AppText('تم إضافة 50 نقطة', isSmall: true),
-              trailing: AppText('اليوم', isCaption: true),
             ),
+          )).toList(),
+
+          SizedBox(height: AppDimensions.medium),
+
+          // Recent scans section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppText.subtitle('آخر عمليات المسح', color: AppColors.deepTeal),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ScanHistoryScreen(),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppText(
+                      'عرض الكل',
+                      color: AppColors.deepTeal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: AppColors.deepTeal,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           SizedBox(height: AppDimensions.small),
-          
-          // Placeholder for more scans
-          AppContainer(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.lightTeal,
-                child: Icon(Icons.qr_code, color: AppColors.deepTeal),
-              ),
-              title: AppText('فرع جدة', fontWeight: FontWeight.bold),
-              subtitle: AppText('تم إضافة 30 نقطة', isSmall: true),
-              trailing: AppText('أمس', isCaption: true),
-            ),
-          ),
-          SizedBox(height: AppDimensions.medium),
-          
-          // View all button
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ScanHistoryScreen(),
+
+          // Recent scans from Supabase
+          BlocBuilder<UserScanHistoryCubit, ScanHistoryState>(
+            builder: (context, scanState) {
+              if (scanState is ScanHistoryLoading) {
+                return AppContainer(
+                  child: SizedBox(
+                    height: 80,
+                    child: Center(child: AppLoadingIndicator()),
                   ),
                 );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppText(
-                    'عرض الكل',
-                    color: AppColors.deepTeal,
-                    fontWeight: FontWeight.bold,
+              }
+              
+              if (scanState is ScanHistoryError) {
+                return AppContainer(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.alertRed.withOpacity(0.1),
+                      child: Icon(Icons.error, color: AppColors.alertRed),
+                    ),
+                    title: AppText('خطأ في تحميل سجل المسح', fontWeight: FontWeight.bold),
+                    subtitle: AppText('تعذر تحميل عمليات المسح الحديثة', isSmall: true),
                   ),
-                  Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.deepTeal),
-                ],
-              ),
-            ),
-          ),
-          
-          SizedBox(height: AppDimensions.large),
-          
-          // Available gifts
-          AppText.subtitle(
-            'الهدايا المتاحة',
-            color: AppColors.deepTeal,
-          ),
-          SizedBox(height: AppDimensions.medium),
-          
-          // Horizontal list of gifts
-          SizedBox(
-            height: 190,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3, // Placeholder count
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 150,
-                  margin: EdgeInsets.only(right: AppDimensions.medium),
-                  child: AppContainer(
-                    padding: EdgeInsets.all(AppDimensions.small),
-                    child: LayoutBuilder(builder: (context, constraints) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 70,
-                            decoration: BoxDecoration(
-                              color: AppColors.lightTeal,
-                              borderRadius: BorderRadius.circular(AppDimensions.small),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.card_giftcard,
-                                color: AppColors.deepTeal,
-                                size: 36,
-                              ),
-                            ),
+                );
+              }
+              
+              if (scanState is ScanHistoryLoaded) {
+                final recentScans = scanState.scanHistory.take(3).toList(); // Show only recent 3
+                
+                if (recentScans.isEmpty) {
+                  return AppContainer(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.lightTeal,
+                        child: Icon(Icons.qr_code, color: AppColors.deepTeal),
+                      ),
+                      title: AppText('لا توجد عمليات مسح حديثة', fontWeight: FontWeight.bold),
+                      subtitle: AppText('ابدأ بمسح رمز QR لكسب النقاط', isSmall: true),
+                    ),
+                  );
+                }
+                
+                return Column(
+                  children: recentScans.map((scan) {
+                    final pointsEarned = scan['points_earned'] ?? 0;
+                    final branch = scan['branch'] ?? 'غير محدد';
+                    final scanDate = DateTime.tryParse(scan['scan_date'] ?? '') ?? DateTime.now();
+                    final timeAgo = _getTimeAgo(scanDate);
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppDimensions.small),
+                      child: AppContainer(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.successGreen.withOpacity(0.1),
+                            child: Icon(Icons.qr_code_scanner, color: AppColors.successGreen),
                           ),
-                          SizedBox(height: AppDimensions.small),
-                          AppText(
-                            'هدية ${index + 1}',
+                          title: AppText(
+                            '+$pointsEarned نقطة من $branch',
                             fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(height: AppDimensions.tiny),
-                          Row(
+                          subtitle: AppText(timeAgo, isSmall: true),
+                          trailing: Icon(
+                            Icons.check_circle,
+                            color: AppColors.successGreen,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              }
+              
+              // Default state
+              return AppContainer(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.lightTeal,
+                    child: Icon(Icons.qr_code, color: AppColors.deepTeal),
+                  ),
+                  title: AppText('لا توجد عمليات مسح حديثة', fontWeight: FontWeight.bold),
+                  subtitle: AppText('ابدأ بمسح رمز QR لكسب النقاط', isSmall: true),
+                ),
+              );
+            },
+          ),
+
+          SizedBox(height: AppDimensions.large),
+
+          // Available gifts
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppText.subtitle('الهدايا المتاحة', color: AppColors.deepTeal),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const GiftsScreen()),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppText(
+                      'عرض الكل',
+                      color: AppColors.deepTeal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: AppColors.deepTeal,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppDimensions.medium),
+
+          // Gifts from Supabase
+          BlocBuilder<GiftCubit, GiftState>(
+            builder: (context, giftState) {
+              if (giftState is GiftLoading) {
+                return SizedBox(
+                  height: 190,
+                  child: Center(child: AppLoadingIndicator()),
+                );
+              }
+              
+              if (giftState is GiftError) {
+                return SizedBox(
+                  height: 190,
+                  child: Center(
+                    child: AppText(
+                      'خطأ في تحميل الهدايا',
+                      color: AppColors.alertRed,
+                    ),
+                  ),
+                );
+              }
+              
+              if (giftState is GiftLoaded) {
+                final gifts = giftState.gifts.take(3).toList(); // Show only first 3
+                
+                if (gifts.isEmpty) {
+                  return SizedBox(
+                    height: 190,
+                    child: Center(
+                      child: AppText(
+                        'لا توجد هدايا متاحة حالياً',
+                        color: AppColors.lightText,
+                      ),
+                    ),
+                  );
+                }
+                
+                return SizedBox(
+                  height: 190,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: gifts.length,
+                    itemBuilder: (context, index) {
+                      final gift = gifts[index];
+                      final giftName = gift['name'] as String? ?? 'هدية ${index + 1}';
+                      final giftPoints = gift['points'] as int? ?? 0;
+                      final imageUrl = gift['image_url'] as String?; // Fixed field name
+                      
+                      return Container(
+                        width: 150,
+                        margin: EdgeInsets.only(right: AppDimensions.medium),
+                        child: AppContainer(
+                          padding: EdgeInsets.all(AppDimensions.small),
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.star, color: AppColors.goldAccent, size: 14),
-                              SizedBox(width: 4),
-                              Flexible(
-                                child: AppText(
-                                  '${(index + 1) * 100} نقطة',
-                                  isSmall: true,
+                              Container(
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  color: AppColors.lightTeal,
+                                  borderRadius: BorderRadius.circular(
+                                    AppDimensions.small,
+                                  ),
                                 ),
+                                child: imageUrl != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(
+                                          AppDimensions.small,
+                                        ),
+                                        child: Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          errorBuilder: (context, error, stackTrace) => Center(
+                                            child: Icon(
+                                              Icons.card_giftcard,
+                                              color: AppColors.deepTeal,
+                                              size: 36,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Icon(
+                                          Icons.card_giftcard,
+                                          color: AppColors.deepTeal,
+                                          size: 36,
+                                        ),
+                                      ),
+                              ),
+                              SizedBox(height: AppDimensions.small),
+                              AppText(
+                                giftName,
+                                fontWeight: FontWeight.bold,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: AppDimensions.tiny),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    color: AppColors.goldAccent,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Flexible(
+                                    child: AppText(
+                                      '$giftPoints نقطة',
+                                      isSmall: true,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       );
-                    }),
+                    },
                   ),
                 );
-              },
-            ),
+              }
+              
+              // Default loading state
+              return SizedBox(
+                height: 190,
+                child: Center(child: AppLoadingIndicator()),
+              );
+            },
           ),
-          
-          // View all gifts button
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const GiftsScreen(),
-                  ),
-                );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppText(
-                    'عرض كل الهدايا',
-                    color: AppColors.deepTeal,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.deepTeal),
-                ],
-              ),
-            ),
-          ),
-          
+
           SizedBox(height: AppDimensions.large),
-          
+
           // Levels section
-          AppText.subtitle(
-            'المستويات',
-            color: AppColors.deepTeal,
-          ),
+          AppText.subtitle('المستويات', color: AppColors.deepTeal),
           SizedBox(height: AppDimensions.medium),
-          
+
           // Level card
           AppContainer(
             child: Column(
@@ -371,9 +608,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.emoji_events, color: AppColors.goldAccent),
+                        Icon(
+                          Icons.emoji_events,
+                          color: AppColors.goldAccent,
+                          size: 24,
+                        ),
                         SizedBox(width: AppDimensions.small),
-                        AppText.subtitle(
+                        AppText.medium(
                           'مستواك الحالي: $level',
                           fontWeight: FontWeight.bold,
                         ),
@@ -395,7 +636,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: AppColors.deepTeal,
                             fontWeight: FontWeight.bold,
                           ),
-                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.deepTeal),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: AppColors.deepTeal,
+                          ),
                         ],
                       ),
                     ),
@@ -409,90 +654,165 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          
+
           SizedBox(height: AppDimensions.large),
-          
+
           // Available offers
-          AppText.subtitle(
-            'العروض المتاحة',
-            color: AppColors.deepTeal,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppText.subtitle('العروض المتاحة', color: AppColors.deepTeal),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const OffersScreen()),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppText(
+                      'عرض الكل',
+                      color: AppColors.deepTeal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: AppColors.deepTeal,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           SizedBox(height: AppDimensions.medium),
-          
-          // Horizontal list of offers
-          SizedBox(
-            height: 190,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3, // Placeholder count
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 150,
-                  margin: EdgeInsets.only(right: AppDimensions.medium),
-                  child: AppContainer(
-                    padding: EdgeInsets.all(AppDimensions.small),
-                    child: LayoutBuilder(builder: (context, constraints) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 70,
-                            decoration: BoxDecoration(
-                              color: AppColors.lightTeal,
-                              borderRadius: BorderRadius.circular(AppDimensions.small),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.local_offer,
-                                color: AppColors.deepTeal,
-                                size: 36,
+
+          // Offers from Supabase
+          BlocBuilder<OffersCubit, OffersState>(
+            builder: (context, offersState) {
+              if (offersState is OffersLoading) {
+                return SizedBox(
+                  height: 190,
+                  child: Center(child: AppLoadingIndicator()),
+                );
+              }
+              
+              if (offersState is OffersError) {
+                return SizedBox(
+                  height: 190,
+                  child: Center(
+                    child: AppText(
+                      'خطأ في تحميل العروض',
+                      color: AppColors.alertRed,
+                    ),
+                  ),
+                );
+              }
+              
+              if (offersState is OffersLoaded) {
+                dev.log('🏠 HomeScreen: OffersLoaded state received with ${offersState.offers.length} offers');
+                for (var offer in offersState.offers) {
+                  dev.log('   🎁 Home Offer: ${offer.title} (ID: ${offer.id}) - isActive: ${offer.isActive}, endDate: ${offer.endDate}');
+                }
+                
+                final offers = offersState.offers.take(3).toList(); // Show only first 3
+                dev.log('🏠 HomeScreen: Displaying first ${offers.length} offers in home screen');
+                
+                if (offers.isEmpty) {
+                  return SizedBox(
+                    height: 190,
+                    child: Center(
+                      child: AppText(
+                        'لا توجد عروض متاحة حالياً',
+                        color: AppColors.lightText,
+                      ),
+                    ),
+                  );
+                }
+                
+                return SizedBox(
+                  height: 190,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: offers.length,
+                    itemBuilder: (context, index) {
+                      final offer = offers[index];
+                      
+                      return Container(
+                        width: 150,
+                        margin: EdgeInsets.only(right: AppDimensions.medium),
+                        child: AppContainer(
+                          padding: EdgeInsets.all(AppDimensions.small),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  color: AppColors.lightTeal,
+                                  borderRadius: BorderRadius.circular(
+                                    AppDimensions.small,
+                                  ),
+                                ),
+                                child: offer.imageUrl.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(
+                                          AppDimensions.small,
+                                        ),
+                                        child: Image.network(
+                                          offer.imageUrl,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          errorBuilder: (context, error, stackTrace) => Center(
+                                            child: Icon(
+                                              Icons.local_offer,
+                                              color: AppColors.deepTeal,
+                                              size: 36,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Icon(
+                                          Icons.local_offer,
+                                          color: AppColors.deepTeal,
+                                          size: 36,
+                                        ),
+                                      ),
                               ),
-                            ),
+                              SizedBox(height: AppDimensions.small),
+                              AppText(
+                                offer.title,
+                                fontWeight: FontWeight.bold,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: AppDimensions.tiny),
+                              Flexible(
+                                child: AppText(
+                                  offer.description,
+                                  isSmall: true,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(height: AppDimensions.small),
-                          AppText(
-                            'عرض ${index + 1}',
-                            fontWeight: FontWeight.bold,
-                          ),
-                          SizedBox(height: AppDimensions.tiny),
-                          Flexible(
-                            child: AppText(
-                              'عرض خاص لفترة محدودة',
-                              isSmall: true,
-                            ),
-                          ),
-                        ],
+                        ),
                       );
-                    }),
+                    },
                   ),
                 );
-              },
-            ),
-          ),
-          
-          // View all offers button
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const OffersScreen(),
-                  ),
-                );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppText(
-                    'عرض كل العروض',
-                    color: AppColors.deepTeal,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.deepTeal),
-                ],
-              ),
-            ),
+              }
+              
+              // Default loading state
+              return SizedBox(
+                height: 190,
+                child: Center(child: AppLoadingIndicator()),
+              );
+            },
           ),
         ],
       ),
@@ -513,26 +833,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Admin Screens
   Widget _buildAdminDashboard(AuthAuthenticated state) {
-    return Center(
-      child: AppText('لوحة التحكم', color: AppColors.deepTeal),
-    );
+    try {
+      return const AdminDashboardScreen();
+    } catch (e) {
+      dev.log('HomeScreen: Error creating admin dashboard: $e');
+      return Center(child: Text('Error loading dashboard: $e'));
+    }
   }
 
   Widget _buildUsersManagement(AuthAuthenticated state) {
-    return Center(
-      child: AppText('إدارة المستخدمين', color: AppColors.deepTeal),
-    );
+    return const UsersScreen();
   }
 
   Widget _buildQRCodesManagement(AuthAuthenticated state) {
-    return Center(
-      child: AppText('إدارة رموز QR', color: AppColors.deepTeal),
-    );
+    return const QrCodesScreen();
   }
 
   Widget _buildSettingsScreen(AuthAuthenticated state) {
-    return Center(
-      child: AppText('الإعدادات', color: AppColors.deepTeal),
-    );
+    dev.log('HomeScreen: Building settings screen (ProfileScreen)');
+    return const ProfileScreen();
   }
 }

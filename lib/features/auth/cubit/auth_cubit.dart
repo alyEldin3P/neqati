@@ -1,18 +1,23 @@
+import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/services/firebase_auth_service.dart';
-import '../../../core/services/firestore_service.dart';
+import 'package:neqati/core/services/auth_service.dart';
+import 'package:neqati/core/services/user_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/supabase_service.dart';
+import '../../../core/services/session_manager.dart';
 import '../../../core/services/dependency_injector.dart';
 
 part 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
-  final FirebaseAuthService _authService;
-  final FirestoreService _firestoreService;
+  final SessionManager _sessionManager;
+  final AuthService _authService;
+  final UserService _userService;
 
-  AuthCubit({FirebaseAuthService? authService, FirestoreService? firestoreService})
-    : _authService = authService ?? DependencyInjector().authService,
-      _firestoreService = firestoreService ?? DependencyInjector().firestoreService,
+  AuthCubit({SessionManager? sessionManager})
+    : _sessionManager = sessionManager ?? DependencyInjector().sessionManager,
+      _authService = DependencyInjector().authService,
+      _userService = DependencyInjector().userService,
       super(AuthInitial());
 
   // Check current authentication state
@@ -21,58 +26,134 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final user = _authService.currentUser;
       if (user != null) {
+        log('AuthCubit: User session exists, checking verification');
         // Check if user is verified by admin
-        final isVerified = await _authService.isUserVerified(user.uid);
+        final isVerified = await _authService.isUserVerified(user.id);
         if (isVerified) {
-          final isAdmin = await _authService.isUserAdmin(user.uid);
-          final userData = await _firestoreService.getUserData(user.uid);
-          emit(AuthAuthenticated(user: user, userData: userData!, isAdmin: isAdmin));
+          final isAdmin = await _authService.isUserAdmin(user.id);
+          final userData = await _userService.getUserData(user.id);
+          emit(
+            AuthAuthenticated(
+              user: user,
+              userData: userData!,
+              isAdmin: isAdmin,
+            ),
+          );
         } else {
           emit(AuthNotVerified());
         }
       } else {
-        emit(AuthUnauthenticated());
+        log('AuthCubit: No active session, checking for saved credentials');
+        // Try automatic login with saved credentials
+        await _tryAutoLogin();
       }
     } catch (e) {
+      log('AuthCubit: Error checking auth state: $e');
       emit(AuthError(e.toString()));
     }
   }
 
-  // Sign in with phone and password
-  Future<void> signInWithPhoneAndPassword(String phoneNumber, String password) async {
-    emit(AuthLoading());
+  // Try automatic login with saved credentials
+  Future<void> _tryAutoLogin() async {
     try {
+      final savedCredentials = await _sessionManager.getSavedCredentials();
+      if (savedCredentials != null) {
+        log('AuthCubit: Found saved credentials, attempting auto login');
+        final email = savedCredentials['email']!;
+        final password = savedCredentials['password']!;
+
+        // Attempt silent login
+        await _performLogin(email, password, isAutoLogin: true);
+      } else {
+        log('AuthCubit: No saved credentials found');
+        emit(AuthUnauthenticated());
+      }
+    } catch (e) {
+      log('AuthCubit: Auto login failed: $e');
+      // Clear invalid credentials and show unauthenticated state
+      await _sessionManager.clearLoginCredentials();
+      emit(AuthUnauthenticated());
+    }
+  }
+
+  // Sign in with email and password
+  Future<void> signInWithEmailAndPassword(String email, String password) async {
+    emit(AuthLoading());
+    await _performLogin(email, password, isAutoLogin: false);
+  }
+
+  // Shared login method for both manual and automatic login
+  Future<void> _performLogin(
+    String email,
+    String password, {
+    required bool isAutoLogin,
+  }) async {
+    try {
+      log('AuthCubit: Performing login for email: $email (auto: $isAutoLogin)');
+
       // Sign in
-      final userCredential = await _authService.signInWithPhoneAndPassword(phoneNumber, password);
+      final response = await _authService.signInWithEmailAndPassword(
+        email,
+        password,
+      );
+      final user = response.user;
+
+      if (user == null) {
+        emit(AuthError('فشل تسجيل الدخول'));
+        return;
+      }
 
       // Check if user is verified by admin
-      final isVerified = await _authService.isUserVerified(userCredential.user!.uid);
+      final isVerified = await _authService.isUserVerified(user.id);
       if (isVerified) {
-        final isAdmin = await _authService.isUserAdmin(userCredential.user!.uid);
-        final userData = await _firestoreService.getUserData(userCredential.user!.uid);
-        emit(AuthAuthenticated(user: userCredential.user!, userData: userData!, isAdmin: isAdmin));
+        final isAdmin = await _authService.isUserAdmin(user.id);
+        final userData = await _userService.getUserData(user.id);
+
+        // Save credentials for remember me (only for manual login)
+        if (!isAutoLogin) {
+          log('AuthCubit: Saving login credentials for remember me');
+          await _sessionManager.saveLoginCredentials(
+            email: email,
+            password: password,
+            rememberMe: true, // Always remember for automatic caching
+          );
+        } else {
+          // Update last login time for auto login
+          await _sessionManager.updateLastLoginTime();
+        }
+
+        emit(
+          AuthAuthenticated(user: user, userData: userData!, isAdmin: isAdmin),
+        );
       } else {
         // Sign out if not verified
         await _authService.signOut();
         emit(AuthNotVerified());
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       String errorMessage;
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'لا يوجد حساب بهذا الرقم';
+      switch (e.message) {
+        case 'Invalid login credentials':
+          errorMessage = 'بيانات الدخول غير صحيحة';
           break;
-        case 'wrong-password':
-          errorMessage = 'كلمة المرور غير صحيحة';
+        case 'Email not confirmed':
+          errorMessage = 'البريد الإلكتروني غير مؤكد';
           break;
-        case 'user-disabled':
+        case 'User is disabled':
           errorMessage = 'تم تعطيل هذا الحساب';
           break;
         default:
-          errorMessage = 'حدث خطأ في تسجيل الدخول';
+          errorMessage = 'حدث خطأ في تسجيل الدخول: ${e.message}';
       }
+
+      // Clear saved credentials if login fails
+      if (errorMessage.contains('بيانات الدخول غير صحيحة')) {
+        await _sessionManager.clearLoginCredentials();
+      }
+
       emit(AuthError(errorMessage));
     } catch (e) {
+      log('AuthCubit: Login error: $e');
       emit(AuthError(e.toString()));
     }
   }
@@ -83,36 +164,59 @@ class AuthCubit extends Cubit<AuthState> {
     required String address,
     required String nationalId,
     required String phoneNumber,
+    required String email,
     required String password,
     required String position,
   }) async {
     emit(AuthLoading());
     try {
-      // Format phone number
-      final formattedPhone = phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber;
-
       // Register user
       await _authService.registerUser(
         name: name,
         address: address,
         nationalId: nationalId,
-        phoneNumber: formattedPhone,
+        phoneNumber: phoneNumber,
+        email: email,
         password: password,
         position: position,
       );
 
       emit(AuthRegistrationSuccess());
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       String errorMessage;
-      switch (e.code) {
-        case 'email-already-in-use':
-          errorMessage = 'هذا الرقم مسجل بالفعل';
+      switch (e.message) {
+        case 'User already registered':
+          errorMessage = 'هذا البريد الإلكتروني مسجل بالفعل';
           break;
-        case 'weak-password':
+        case 'Password should be at least 6 characters':
           errorMessage = 'كلمة المرور ضعيفة جدًا';
           break;
         default:
-          errorMessage = 'حدث خطأ في التسجيل';
+          errorMessage = 'حدث خطأ في التسجيل: ${e.message}';
+      }
+      emit(AuthError(errorMessage));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    emit(AuthLoading());
+    try {
+      await _authService.resetPassword(email);
+      emit(AuthPasswordResetSent());
+    } on AuthException catch (e) {
+      String errorMessage;
+      switch (e.message) {
+        case 'Email not found':
+          errorMessage = 'لا يوجد حساب بهذا البريد الإلكتروني';
+          break;
+        case 'Invalid email':
+          errorMessage = 'البريد الإلكتروني غير صحيح';
+          break;
+        default:
+          errorMessage = 'حدث خطأ في إرسال رابط الاستعادة: ${e.message}';
       }
       emit(AuthError(errorMessage));
     } catch (e) {
@@ -124,22 +228,31 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signOut() async {
     emit(AuthLoading());
     try {
+      log('AuthCubit: Signing out user');
       await _authService.signOut();
+
+      // Clear saved credentials on manual sign out
+      await _sessionManager.clearLoginCredentials();
+      log('AuthCubit: Cleared saved credentials');
+
       emit(AuthUnauthenticated());
     } catch (e) {
+      log('AuthCubit: Sign out error: $e');
       emit(AuthError(e.toString()));
     }
   }
-  
+
   // Refresh user data
   Future<void> refreshUserData() async {
     final currentState = state;
     if (currentState is AuthAuthenticated) {
       try {
         final user = currentState.user;
-        final isAdmin = await _authService.isUserAdmin(user.uid);
-        final userData = await _firestoreService.getUserData(user.uid);
-        emit(AuthAuthenticated(user: user, userData: userData!, isAdmin: isAdmin));
+        final isAdmin = await _authService.isUserAdmin(user.id);
+        final userData = await _userService.getUserData(user.id);
+        emit(
+          AuthAuthenticated(user: user, userData: userData!, isAdmin: isAdmin),
+        );
       } catch (e) {
         // Keep the current state if refresh fails
         // but don't emit an error to avoid disrupting the UI

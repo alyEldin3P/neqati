@@ -9,9 +9,9 @@ class ScanResultDialog extends StatelessWidget {
   final Map<String, dynamic> result;
 
   const ScanResultDialog({
-    Key? key,
+    super.key,
     required this.result,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class ScanResultDialog extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: isSuccess ? AppColors.lightTeal : AppColors.alertRed.withOpacity(0.1),
+                color: isSuccess ? AppColors.lightTeal : AppColors.alertRed.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

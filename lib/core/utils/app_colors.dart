@@ -14,6 +14,7 @@ class AppColors {
   // Functional Colors
   static const Color successGreen = Color(0xFF4CAF50);
   static const Color alertRed = Color(0xFFF44336);
+  static const Color warningOrange = Color(0xFFFF9800);
   static const Color informationBlue = Color(0xFF2196F3);
 
   // Additional UI Colors

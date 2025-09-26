@@ -26,11 +26,32 @@ class Level {
     );
   }
 
+  factory Level.fromSupabase(Map<String, dynamic> data, String id) {
+    return Level(
+      id: id,
+      name: data['name'] as String? ?? '',
+      imageUrl: data['image_url'] as String? ?? '',
+      startingPoints: data['starting_points'] as int? ?? 0,
+      multiplier: (data['multiplier'] is int)
+          ? (data['multiplier'] as int).toDouble()
+          : data['multiplier'] as double? ?? 1.0,
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
       'imageUrl': imageUrl,
       'startingPoints': startingPoints,
+      'multiplier': multiplier,
+    };
+  }
+
+  Map<String, dynamic> toSupabase() {
+    return {
+      'name': name,
+      'image_url': imageUrl,
+      'starting_points': startingPoints,
       'multiplier': multiplier,
     };
   }

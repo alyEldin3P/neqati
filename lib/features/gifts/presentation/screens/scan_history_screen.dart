@@ -3,54 +3,30 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/presentation/widgets/app_text.dart';
 import '../../../../core/presentation/widgets/app_container.dart';
 import '../../../../core/presentation/widgets/app_loading_indicator.dart';
-import '../../../../core/services/firestore_service.dart';
-import '../../../../core/services/dependency_injector.dart';
 import '../../../../core/utils/app_colors.dart';
 import '../../../../core/utils/app_dimensions.dart';
 import '../../../auth/cubit/auth_cubit.dart';
+import '../../cubit/scan_history_cubit.dart';
+import '../../cubit/scan_history_state.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
-  const ScanHistoryScreen({Key? key}) : super(key: key);
+  const ScanHistoryScreen({super.key});
 
   @override
   State<ScanHistoryScreen> createState() => _ScanHistoryScreenState();
 }
 
 class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
-  final FirestoreService _firestoreService = DependencyInjector().firestoreService;
-  bool _isLoading = true;
-  List<Map<String, dynamic>> _scanHistory = [];
-  String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
     _loadScanHistory();
   }
 
-  Future<void> _loadScanHistory() async {
+  void _loadScanHistory() {
     final authState = context.read<AuthCubit>().state;
-    if (authState is! AuthAuthenticated) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'يجب تسجيل الدخول لعرض سجل المسح';
-      });
-      return;
-    }
-
-    try {
-      final userId = authState.user.uid;
-      final history = await _firestoreService.getUserScanHistory(userId);
-      
-      setState(() {
-        _scanHistory = history;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'حدث خطأ أثناء تحميل سجل المسح: ${e.toString()}';
-      });
+    if (authState is AuthAuthenticated) {
+      context.read<UserScanHistoryCubit>().loadScanHistory(authState.user.id);
     }
   }
 
@@ -62,104 +38,124 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
         title: AppText('سجل المسح', color: AppColors.white, fontWeight: FontWeight.bold),
         centerTitle: true,
       ),
-      body: _buildBody(),
-    );
-  }
+      body: BlocBuilder<UserScanHistoryCubit, ScanHistoryState>(
+        builder: (context, state) {
+          if (state is ScanHistoryLoading) {
+            return const Center(child: AppLoadingIndicator());
+          }
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: AppLoadingIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppDimensions.large),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, color: AppColors.alertRed, size: 48),
-              SizedBox(height: AppDimensions.medium),
-              AppText(
-                _errorMessage!,
-                color: AppColors.alertRed,
-                textAlign: TextAlign.center,
+          if (state is ScanHistoryError) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppDimensions.large),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: AppColors.alertRed, size: 48),
+                    SizedBox(height: AppDimensions.medium),
+                    AppText(
+                      state.message,
+                      color: AppColors.alertRed,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: AppDimensions.large),
+                    ElevatedButton(
+                      onPressed: _loadScanHistory,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.deepTeal,
+                      ),
+                      child: AppText('إعادة المحاولة', color: AppColors.white),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(height: AppDimensions.large),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _errorMessage = null;
-                  });
-                  _loadScanHistory();
+            );
+          }
+
+          if (state is ScanHistoryLoaded) {
+            if (state.scanHistory.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppDimensions.large),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.qr_code_scanner, color: AppColors.lightTeal, size: 64),
+                      SizedBox(height: AppDimensions.medium),
+                      AppText(
+                        'لا يوجد سجل مسح حتى الآن',
+                        color: AppColors.deepTeal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      SizedBox(height: AppDimensions.small),
+                      AppText(
+                        'قم بمسح رمز QR لكسب النقاط وستظهر هنا',
+                        color: AppColors.lightText,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: () async => _loadScanHistory(),
+              color: AppColors.deepTeal,
+              child: ListView.builder(
+                padding: EdgeInsets.all(AppDimensions.medium),
+                itemCount: state.scanHistory.length,
+                itemBuilder: (context, index) {
+                  final scan = state.scanHistory[index];
+                  final pointsEarned = scan['points_earned'] ?? 0;
+                  final branch = scan['branch'] ?? 'غير معروف';
+                  final scanDate = scan['scan_date'] != null ? DateTime.parse(scan['scan_date']) : DateTime.now();
+                  
+                  // Format date for display
+                  final formattedDate = _formatDate(scanDate);
+                  
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: AppDimensions.small),
+                    child: AppContainer(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.lightTeal,
+                          child: Icon(Icons.qr_code, color: AppColors.deepTeal),
+                        ),
+                        title: AppText('فرع $branch', fontWeight: FontWeight.bold),
+                        subtitle: AppText('تم إضافة $pointsEarned نقطة', isSmall: true),
+                        trailing: AppText(formattedDate, isCaption: true),
+                      ),
+                    ),
+                  );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.deepTeal,
-                ),
-                child: AppText('إعادة المحاولة', color: AppColors.white),
               ),
-            ],
-          ),
-        ),
-      );
-    }
+            );
+          }
 
-    if (_scanHistory.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppDimensions.large),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.qr_code_scanner, color: AppColors.lightTeal, size: 64),
-              SizedBox(height: AppDimensions.medium),
-              AppText(
-                'لا يوجد سجل مسح حتى الآن',
-                color: AppColors.deepTeal,
-                fontWeight: FontWeight.bold,
-              ),
-              SizedBox(height: AppDimensions.small),
-              AppText(
-                'قم بمسح رمز QR لكسب النقاط وستظهر هنا',
-                color: AppColors.lightText,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadScanHistory,
-      color: AppColors.deepTeal,
-      child: ListView.builder(
-        padding: EdgeInsets.all(AppDimensions.medium),
-        itemCount: _scanHistory.length,
-        itemBuilder: (context, index) {
-          final scan = _scanHistory[index];
-          final pointsEarned = scan['pointsEarned'] ?? 0;
-          final branch = scan['branch'] ?? 'غير معروف';
-          final scanDate = scan['scanDate'] as DateTime? ?? DateTime.now();
-          
-          // Format date for display
-          final formattedDate = _formatDate(scanDate);
-          
-          return Padding(
-            padding: EdgeInsets.only(bottom: AppDimensions.small),
-            child: AppContainer(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.lightTeal,
-                  child: Icon(Icons.qr_code, color: AppColors.deepTeal),
+          // Handle initial state
+          final authState = context.read<AuthCubit>().state;
+          if (authState is! AuthAuthenticated) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppDimensions.large),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: AppColors.alertRed, size: 48),
+                    SizedBox(height: AppDimensions.medium),
+                    AppText(
+                      'يجب تسجيل الدخول لعرض سجل المسح',
+                      color: AppColors.alertRed,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                title: AppText('فرع $branch', fontWeight: FontWeight.bold),
-                subtitle: AppText('تم إضافة $pointsEarned نقطة', isSmall: true),
-                trailing: AppText(formattedDate, isCaption: true),
               ),
-            ),
-          );
+            );
+          }
+
+          return const Center(child: AppLoadingIndicator());
         },
       ),
     );

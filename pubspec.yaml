@@ -30,15 +30,10 @@ environment:
 dependencies:
   advanced_e2ee_service: ^0.0.12
   bloc: ^9.0.0
-  cloud_firestore: ^4.17.5
   crypto: ^3.0.6
   cupertino_icons: ^1.0.8
   encrypt: ^5.0.3
   equatable: ^2.0.7
-  firebase_app_check: ^0.2.1+8
-  firebase_auth: ^4.15.3
-  firebase_core: ^2.24.2
-  firebase_storage: ^11.5.6
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
@@ -46,8 +41,14 @@ dependencies:
     sdk: flutter
   get_it: ^8.2.0
   image_picker: ^1.2.0
-  mobile_scanner: ^7.0.1
+  mobile_scanner: ^7.1.2
   qr_flutter: ^4.1.0
+  # Supabase dependencies
+  supabase_flutter: ^2.3.4
+  postgrest: ^2.1.0
+  storage_client: ^2.0.1
+  # Local storage for session management
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_lints: ^5.0.0

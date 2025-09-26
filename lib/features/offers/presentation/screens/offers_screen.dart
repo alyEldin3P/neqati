@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:neqati/core/presentation/widgets/app_container.dart';
@@ -20,6 +21,7 @@ class _OffersScreenState extends State<OffersScreen> {
   @override
   void initState() {
     super.initState();
+    log('📱 OffersScreen: initState - Loading offers for full offers screen');
     context.read<OffersCubit>().loadOffers();
   }
 
@@ -51,10 +53,18 @@ class _OffersScreenState extends State<OffersScreen> {
               ),
             );
           } else if (state is OffersLoaded) {
+            log('📱 OffersScreen: OffersLoaded state received with ${state.offers.length} offers');
+            for (var offer in state.offers) {
+              log('   🎁 Screen Offer: ${offer.title} (ID: ${offer.id}) - isActive: ${offer.isActive}, endDate: ${offer.endDate}');
+            }
+            
             final offers = state.offers;
             if (offers.isEmpty) {
+              log('📱 OffersScreen: No offers to display');
               return Center(child: AppText('لا توجد عروض متاحة حالياً', color: AppColors.deepTeal));
             }
+            
+            log('📱 OffersScreen: Building ListView with ${offers.length} offers');
             return ListView.builder(
               padding: EdgeInsets.all(AppDimensions.medium),
               itemCount: offers.length,

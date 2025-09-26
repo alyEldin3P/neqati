@@ -14,6 +14,7 @@ class AppText extends StatelessWidget {
   final bool isSmall;
   final Color? color;
   final FontWeight? fontWeight;
+  final bool isMedium;
 
   const AppText(
     this.text, {
@@ -28,6 +29,7 @@ class AppText extends StatelessWidget {
     this.isSmall = false,
     this.color,
     this.fontWeight,
+    this.isMedium = false,
   }) : super(key: key);
 
   @override
@@ -42,6 +44,8 @@ class AppText extends StatelessWidget {
       textStyle = AppTextStyles.caption(color: color, fontWeight: fontWeight);
     } else if (isSmall) {
       textStyle = AppTextStyles.small(color: color, fontWeight: fontWeight);
+    } else if (isMedium) {
+      textStyle = AppTextStyles.medium(color: color, fontWeight: fontWeight);
     } else {
       textStyle = AppTextStyles.body(color: color, fontWeight: fontWeight);
     }
@@ -133,6 +137,27 @@ class AppText extends StatelessWidget {
       text,
       key: key,
       isSmall: true,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      overflow: overflow,
+      color: color,
+      fontWeight: fontWeight,
+    );
+  }
+
+  factory AppText.medium(
+    String text, {
+    Key? key,
+    TextAlign? textAlign,
+    int? maxLines,
+    TextOverflow? overflow,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return AppText(
+      text,
+      key: key,
+      isMedium: true,
       textAlign: textAlign,
       maxLines: maxLines,
       overflow: overflow,

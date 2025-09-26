@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class AppUser {
   final String id;
   final String? name;
@@ -25,34 +23,36 @@ class AppUser {
     this.createdAt,
   });
 
-  factory AppUser.fromFirestore(Map<String, dynamic> data, String id) {
+  factory AppUser.fromSupabase(Map<String, dynamic> data, String id) {
     return AppUser(
       id: id,
       name: data['name'] as String?,
-      phoneNumber: data['phoneNumber'] as String?,
+      phoneNumber: data['phone_number'] as String?,
       email: data['email'] as String?,
-      isVerified: data['isVerified'] as bool? ?? false,
-      isBlocked: data['isBlocked'] as bool? ?? false,
-      isAdmin: data['isAdmin'] as bool? ?? false,
+      isVerified: data['is_verified'] as bool? ?? false,
+      isBlocked: data['is_blocked'] as bool? ?? false,
+      isAdmin: data['is_admin'] as bool? ?? false,
       points: data['points'] as int? ?? 0,
       level: data['level'] as String? ?? 'مبتدئ',
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : null,
+      createdAt:
+          data['created_at'] != null
+              ? DateTime.parse(data['created_at'] as String)
+              : null,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+
+  Map<String, dynamic> toSupabase() {
     return {
       'name': name,
-      'phoneNumber': phoneNumber,
+      'phone_number': phoneNumber,
       'email': email,
-      'isVerified': isVerified,
-      'isBlocked': isBlocked,
-      'isAdmin': isAdmin,
+      'is_verified': isVerified,
+      'is_blocked': isBlocked,
+      'is_admin': isAdmin,
       'points': points,
       'level': level,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'created_at': createdAt?.toIso8601String(),
     };
   }
 

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Gift {
   final String id;
   final String name;
@@ -17,27 +15,26 @@ class Gift {
     this.createdAt,
   });
 
-  // Create a Gift from a Firestore document
-  factory Gift.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  // Create a Gift from a Supabase response
+  factory Gift.fromSupabase(Map<String, dynamic> data) {
     return Gift(
-      id: doc.id,
+      id: data['id'] as String? ?? '',
       name: data['name'] as String? ?? '',
       points: data['points'] as int? ?? 0,
       stock: data['stock'] as int? ?? 0,
-      imageUrl: data['imageUrl'] as String?,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      imageUrl: data['image_url'] as String?,
+      createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : null,
     );
   }
 
-  // Convert Gift to a Map for Firestore
-  Map<String, dynamic> toFirestore() {
+  // Convert Gift to a Map for Supabase
+  Map<String, dynamic> toSupabase() {
     return {
       'name': name,
       'points': points,
       'stock': stock,
-      'imageUrl': imageUrl,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'image_url': imageUrl,
+      'created_at': createdAt?.toIso8601String(),
     };
   }
 

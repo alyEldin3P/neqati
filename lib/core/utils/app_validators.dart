@@ -13,10 +13,11 @@ class AppValidators {
       return 'يرجى إدخال رقم الهاتف';
     }
 
-    // // Saudi Arabia phone number format (05xxxxxxxx or 5xxxxxxxx)
-    if (value.length != 11) {
-      return 'يرجى إدخال رقم هاتف صحيح';
-    }
+    // Saudi Arabia phone number format (05xxxxxxxx)
+    // final RegExp phoneRegex = RegExp(r'^05\d{8}$');
+    // if (!phoneRegex.hasMatch(value.trim())) {
+    //   return 'يرجى إدخال رقم هاتف صحيح (05xxxxxxxx)';
+    // }
 
     return null;
   }
@@ -57,6 +58,23 @@ class AppValidators {
 
     if (value != password) {
       return 'كلمة المرور غير متطابقة';
+    }
+
+    return null;
+  }
+
+  // Validate email
+  static String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'يرجى إدخال البريد الإلكتروني';
+    }
+
+    // Email regex pattern
+    final RegExp emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'يرجى إدخال بريد إلكتروني صحيح';
     }
 
     return null;

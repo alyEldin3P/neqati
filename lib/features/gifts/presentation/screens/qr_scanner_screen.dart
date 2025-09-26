@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:neqati/features/gifts/cubit/qr_scan_cubit.dart';
+import 'package:neqati/features/gifts/cubit/qr_scan_state.dart';
 import '../../../../core/presentation/widgets/app_text.dart';
 import '../../../../core/presentation/widgets/app_loading_indicator.dart';
-import '../../../../core/services/qr_encryption_service.dart';
-import '../../../../core/services/firestore_service.dart';
-import '../../../../core/services/dependency_injector.dart';
 import '../../../../core/utils/app_colors.dart';
 import '../../../../core/utils/app_dimensions.dart';
 import '../../../auth/cubit/auth_cubit.dart';
 import '../widgets/scan_result_dialog.dart';
 
 class QRScannerScreen extends StatefulWidget {
-  const QRScannerScreen({Key? key}) : super(key: key);
+  const QRScannerScreen({super.key});
 
   @override
   State<QRScannerScreen> createState() => _QRScannerScreenState();
@@ -21,7 +20,6 @@ class QRScannerScreen extends StatefulWidget {
 class _QRScannerScreenState extends State<QRScannerScreen> {
   late MobileScannerController controller;
   bool _isProcessing = false;
-  final FirestoreService _firestoreService = DependencyInjector().firestoreService;
 
   @override
   void initState() {
@@ -34,7 +32,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.deepTeal,
-        title: AppText('مسح رمز QR', color: AppColors.white, fontWeight: FontWeight.bold),
+        title: AppText(
+          'مسح رمز QR',
+          color: AppColors.white,
+          fontWeight: FontWeight.bold,
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -46,48 +48,74 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // QR Scanner View
-          MobileScanner(controller: controller, onDetect: _onDetect),
+      body: BlocListener<QRScanCubit, QRScanState>(
+        listener: (context, state) {
+          if (state is QRScanSuccess) {
+            _showScanResult(state.result);
+          } else if (state is QRScanError) {
+            _showScanResult({
+              'success': false,
+              'message': state.message,
+              'points': 0,
+              'location': '',
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            // QR Scanner View
+            MobileScanner(controller: controller, onDetect: _onDetect),
 
-          // Overlay with scanning area
-          Container(
-            decoration: BoxDecoration(border: Border.all(color: AppColors.deepTeal, width: 2)),
-            margin: EdgeInsets.all(AppDimensions.large * 2),
-          ),
+            // Overlay with scanning area
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.deepTeal, width: 2),
+              ),
+              margin: EdgeInsets.all(AppDimensions.large * 2),
+            ),
 
-          // Bottom section with instructions
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              color: AppColors.white,
-              padding: EdgeInsets.all(AppDimensions.medium),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppText(
-                    'وجه الكاميرا نحو رمز QR',
-                    textAlign: TextAlign.center,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.deepTeal,
-                  ),
-                  SizedBox(height: AppDimensions.small),
-                  AppText(
-                    'سيتم مسح الرمز تلقائياً عند اكتشافه',
-                    textAlign: TextAlign.center,
-                    color: AppColors.lightText,
-                  ),
-                ],
+            // Bottom section with instructions
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: AppColors.white,
+                padding: EdgeInsets.all(AppDimensions.medium),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppText(
+                      'وجه الكاميرا نحو رمز QR',
+                      textAlign: TextAlign.center,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.deepTeal,
+                    ),
+                    SizedBox(height: AppDimensions.small),
+                    AppText(
+                      'سيتم مسح الرمز تلقائياً عند اكتشافه',
+                      textAlign: TextAlign.center,
+                      color: AppColors.lightText,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Loading overlay
-          if (_isProcessing) Container(color: Colors.black54, child: const Center(child: AppLoadingIndicator())),
-        ],
+            // Loading overlay
+            BlocBuilder<QRScanCubit, QRScanState>(
+              builder: (context, state) {
+                if (state is QRScanProcessing || _isProcessing) {
+                  return Container(
+                    color: Colors.black54,
+                    child: const Center(child: AppLoadingIndicator()),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -102,23 +130,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         });
 
         try {
-          final result = await _processQRCode(barcode.rawValue!);
-
-          if (mounted) {
-            await showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => ScanResultDialog(result: result),
-            );
-            // Return to previous screen after dialog closes
-            Navigator.of(context).pop();
-          }
+          await _processQRCode(barcode.rawValue!);
         } catch (e) {
           if (mounted) {
-            await showDialog(
-              context: context,
-              builder: (context) => ScanResultDialog(result: {'success': false, 'message': e.toString()}),
-            );
+            _showScanResult({
+              'success': false,
+              'message': e.toString(),
+              'points': 0,
+              'location': '',
+            });
           }
         } finally {
           setState(() {
@@ -129,26 +149,31 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     }
   }
 
-  Future<Map<String, dynamic>> _processQRCode(String qrData) async {
-    // Validate and decrypt QR code
-    final decryptedData = QREncryptionService.decryptQRData(qrData);
-
-    if (decryptedData == null) {
-      throw Exception('رمز QR غير صالح');
-    }
-
+  Future<void> _processQRCode(String qrData) async {
     // Get current user ID from AuthCubit
     final authState = context.read<AuthCubit>().state;
     if (authState is! AuthAuthenticated) {
       throw Exception('يجب تسجيل الدخول لمسح الرموز');
     }
 
-    final userId = authState.user.uid;
+    final userId = authState.user.id;
 
-    // Record scan in Firestore and get points
-    final result = await _firestoreService.recordQRScan(userId: userId, qrData: decryptedData);
+    // Record scan in Supabase and get points using the cubit
+    await context.read<QRScanCubit>().processQRCode(qrData, userId);
+  }
 
-    return result;
+  void _showScanResult(Map<String, dynamic> result) async {
+    if (mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ScanResultDialog(result: result),
+      );
+      // Return to previous screen after dialog closes
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override

@@ -29,6 +29,8 @@ class AuthNotVerified extends AuthState {}
 
 class AuthRegistrationSuccess extends AuthState {}
 
+class AuthPasswordResetSent extends AuthState {}
+
 class AuthError extends AuthState {
   final String message;
 
