@@ -32,6 +32,29 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Flutter build artifacts (comprehensive)
+*.dill
+*.cache.dill
+*.track.dill
+*.so
+*.apk
+*.aab
+*.ipa
+*.app
+*.dmg
+*.zip
+
+# Android build artifacts (comprehensive)
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/app/src/main/java/io/flutter/plugins/
+/android/gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/key.properties
+
 # Symbolication related
 app.*.symbols
 
