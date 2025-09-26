@@ -10,14 +10,14 @@ import 'package:neqati/features/admin/offer_management/cubit/offer_management_st
 import 'package:neqati/features/admin/offer_management/presentation/screens/create_offer_screen.dart';
 import 'package:neqati/features/admin/offer_management/presentation/screens/edit_offer_screen.dart';
 
-class OffersScreen extends StatefulWidget {
-  const OffersScreen({Key? key}) : super(key: key);
+class OffersManagementScreen extends StatefulWidget {
+  const OffersManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<OffersScreen> createState() => _OffersScreenState();
+  State<OffersManagementScreen> createState() => _OffersManagementScreenState();
 }
 
-class _OffersScreenState extends State<OffersScreen> {
+class _OffersManagementScreenState extends State<OffersManagementScreen> {
   @override
   void initState() {
     super.initState();
@@ -41,10 +41,11 @@ class _OffersScreenState extends State<OffersScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BlocProvider.value(
-                value: context.read<OfferManagementCubit>(),
-                child: const CreateOfferScreen(),
-              ),
+              builder:
+                  (context) => BlocProvider.value(
+                    value: context.read<OfferManagementCubit>(),
+                    child: const CreateOfferScreen(),
+                  ),
             ),
           );
         },
@@ -54,14 +55,14 @@ class _OffersScreenState extends State<OffersScreen> {
       body: BlocConsumer<OfferManagementCubit, OfferManagementState>(
         listener: (context, state) {
           if (state is OfferActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
             _loadOffers();
           } else if (state is OfferManagementError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         builder: (context, state) {
@@ -125,7 +126,7 @@ class _OffersScreenState extends State<OffersScreen> {
   Widget _buildOfferCard(Map<String, dynamic> offer) {
     final isActive = offer['is_active'] as bool? ?? false;
     final offerId = offer['id']?.toString() ?? '';
-    
+
     return AppContainer(
       margin: const EdgeInsets.only(bottom: AppDimensions.small),
       child: Padding(
@@ -139,9 +140,10 @@ class _OffersScreenState extends State<OffersScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: isActive 
-                        ? AppColors.deepTeal.withOpacity(0.1)
-                        : AppColors.lightText.withOpacity(0.1),
+                    color:
+                        isActive
+                            ? AppColors.deepTeal.withOpacity(0.1)
+                            : AppColors.lightText.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -170,17 +172,19 @@ class _OffersScreenState extends State<OffersScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: isActive 
-                                  ? AppColors.successGreen.withOpacity(0.1)
-                                  : AppColors.alertRed.withOpacity(0.1),
+                              color:
+                                  isActive
+                                      ? AppColors.successGreen.withOpacity(0.1)
+                                      : AppColors.alertRed.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: AppText(
                               isActive ? 'مفعل' : 'غير مفعل',
                               isSmall: true,
-                              color: isActive 
-                                  ? AppColors.successGreen
-                                  : AppColors.alertRed,
+                              color:
+                                  isActive
+                                      ? AppColors.successGreen
+                                      : AppColors.alertRed,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -211,10 +215,11 @@ class _OffersScreenState extends State<OffersScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => BlocProvider.value(
-                              value: context.read<OfferManagementCubit>(),
-                              child: EditOfferScreen(offer: offer),
-                            ),
+                            builder:
+                                (context) => BlocProvider.value(
+                                  value: context.read<OfferManagementCubit>(),
+                                  child: EditOfferScreen(offer: offer),
+                                ),
                           ),
                         );
                         break;
@@ -226,20 +231,21 @@ class _OffersScreenState extends State<OffersScreen> {
                         break;
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('تعديل'),
-                    ),
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(isActive ? 'إلغاء التفعيل' : 'تفعيل'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('حذف'),
-                    ),
-                  ],
+                  itemBuilder:
+                      (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('تعديل'),
+                        ),
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: Text(isActive ? 'إلغاء التفعيل' : 'تفعيل'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('حذف'),
+                        ),
+                      ],
                 ),
               ],
             ),
@@ -260,9 +266,10 @@ class _OffersScreenState extends State<OffersScreen> {
                       isSmall: true,
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isActive 
-                          ? AppColors.alertRed
-                          : AppColors.successGreen,
+                      backgroundColor:
+                          isActive
+                              ? AppColors.alertRed
+                              : AppColors.successGreen,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                   ),
@@ -274,21 +281,16 @@ class _OffersScreenState extends State<OffersScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BlocProvider.value(
-                            value: context.read<OfferManagementCubit>(),
-                            child: EditOfferScreen(offer: offer),
-                          ),
+                          builder:
+                              (context) => BlocProvider.value(
+                                value: context.read<OfferManagementCubit>(),
+                                child: EditOfferScreen(offer: offer),
+                              ),
                         ),
                       );
                     },
-                    icon: const Icon(
-                      Icons.edit,
-                      size: 16,
-                    ),
-                    label: AppText(
-                      'تعديل',
-                      isSmall: true,
-                    ),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: AppText('تعديل', isSmall: true),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.deepTeal,
                       side: BorderSide(color: AppColors.deepTeal),
@@ -316,55 +318,58 @@ class _OffersScreenState extends State<OffersScreen> {
 
   void _toggleOfferStatus(String offerId, bool newStatus) {
     final action = newStatus ? 'تفعيل' : 'إلغاء تفعيل';
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('$action العرض'),
-        content: AppText('هل أنت متأكد من $action هذا العرض؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+      builder:
+          (context) => AlertDialog(
+            title: AppText('$action العرض'),
+            content: AppText('هل أنت متأكد من $action هذا العرض؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<OfferManagementCubit>().toggleOfferStatus(
+                    offerId,
+                    newStatus,
+                  );
+                },
+                child: AppText(
+                  'تأكيد',
+                  color:
+                      newStatus ? AppColors.successGreen : AppColors.alertRed,
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<OfferManagementCubit>().toggleOfferStatus(offerId, newStatus);
-            },
-            child: AppText(
-              'تأكيد',
-              color: newStatus ? AppColors.successGreen : AppColors.alertRed,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   void _showDeleteDialog(String offerId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('حذف العرض'),
-        content: AppText('هل أنت متأكد من حذف هذا العرض؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+      builder:
+          (context) => AlertDialog(
+            title: AppText('حذف العرض'),
+            content: AppText('هل أنت متأكد من حذف هذا العرض؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<OfferManagementCubit>().deleteOffer(offerId);
+                },
+                child: AppText('حذف', color: Colors.red),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<OfferManagementCubit>().deleteOffer(offerId);
-            },
-            child: AppText(
-              'حذف',
-              color: Colors.red,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

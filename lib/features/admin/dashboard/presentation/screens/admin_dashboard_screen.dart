@@ -4,6 +4,7 @@ import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/features/admin/gift_management/presentation/screens/admin_gift_requests_screen.dart';
 import 'package:neqati/features/admin/gift_management/presentation/screens/gifts_screen.dart';
 import 'package:neqati/features/admin/level_management/presentation/screens/admin_levels_screen.dart';
+import 'package:neqati/features/admin/offer_management/presentation/screens/offers_screen.dart';
 import 'package:neqati/features/admin/qr_management/presentation/screens/qr_code_creation_screen.dart';
 import 'package:neqati/features/admin/qr_management/presentation/screens/qr_codes_screen.dart';
 import 'package:neqati/features/admin/scan_history/presentation/screens/scan_history_screen.dart';
@@ -177,7 +178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context,
                   'إدارة العروض',
                   Icons.local_offer,
-                  () => _navigateTo(context, const OffersScreen()),
+                  () => _navigateTo(context, const OffersManagementScreen()),
                 ),
                 const Divider(),
                 _buildQuickAction(

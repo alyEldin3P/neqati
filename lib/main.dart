@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:neqati/core/services/auth_service.dart';
 import 'package:neqati/core/utils/app_theme.dart';
 import 'package:neqati/features/admin/dashboard/cubit/dashboard_cubit.dart';
+import 'package:neqati/features/admin/scan_history/cubit/scan_history_cubit.dart';
 import 'package:neqati/features/admin/user_management/cubit/user_management_cubit.dart';
 import 'package:neqati/features/admin/qr_management/cubit/qr_management_cubit.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_management_cubit.dart';
@@ -149,6 +150,14 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        BlocProvider<ScanHistoryCubit>(
+          create: (context) {
+            dev.log('MyApp: Creating ScanHistoryCubit');
+            return ScanHistoryCubit(
+              scanService: DependencyInjector().scanService,
+            );
+          },
+        ),
         BlocProvider<UserScanHistoryCubit>(
           create: (context) {
             dev.log('MyApp: Creating ScanHistoryCubit');
@@ -166,11 +175,13 @@ class MyApp extends StatelessWidget {
               onGiftRequestSuccess: () {
                 // Refresh user data after successful gift request
                 final authCubit = context.read<AuthCubit>();
-                
+
                 // Refresh user data to update points
                 authCubit.refreshUserData();
-                
-                dev.log('🔄 MyApp: Refreshed user data after successful gift request');
+
+                dev.log(
+                  '🔄 MyApp: Refreshed user data after successful gift request',
+                );
               },
             );
           },
@@ -199,10 +210,10 @@ class MyApp extends StatelessWidget {
                 // Refresh user data after successful scan
                 final authCubit = context.read<AuthCubit>();
                 final scanHistoryCubit = context.read<UserScanHistoryCubit>();
-                
+
                 // Refresh user data to update points
                 authCubit.refreshUserData();
-                
+
                 // Refresh scan history to show latest scan
                 final authState = authCubit.state;
                 if (authState is AuthAuthenticated) {
