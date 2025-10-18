@@ -1,4 +1,4 @@
-package com.example.neqati
+package neqati.app.scan
 
 import io.flutter.embedding.android.FlutterActivity
 

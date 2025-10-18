@@ -28,10 +28,10 @@ class AppValidators {
       return 'يرجى إدخال رقم الهوية الوطنية';
     }
 
-    // Saudi National ID is 10 digits
-    final RegExp idRegex = RegExp(r'^\d{10}$');
+    // National ID must be exactly 14 digits
+    final RegExp idRegex = RegExp(r'^\d{14}$');
     if (!idRegex.hasMatch(value.trim())) {
-      return 'يرجى إدخال رقم هوية وطنية صحيح (10 أرقام)';
+      return 'يرجى إدخال رقم هوية وطنية صحيح (14 رقم)';
     }
 
     return null;

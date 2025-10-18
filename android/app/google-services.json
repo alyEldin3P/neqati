@@ -1,29 +1,48 @@
 {
-    "project_info": {
-        "project_number": "306341450760",
-        "project_id": "neqati-b3ccf",
-        "storage_bucket": "neqati-b3ccf.firebasestorage.app"
-    },
-    "client": [
-        {
-            "client_info": {
-                "mobilesdk_app_id": "1:306341450760:android:9a4d4b0b21617e31292dbd",
-                "android_client_info": {
-                    "package_name": "com.example.neqati"
-                }
-            },
-            "oauth_client": [],
-            "api_key": [
-                {
-                    "current_key": "AIzaSyC5O4zdwuO4BDL9y9qTOe0s-0Xn9nlv2Rw"
-                }
-            ],
-            "services": {
-                "appinvite_service": {
-                    "other_platform_oauth_client": []
-                }
-            }
+  "project_info": {
+    "project_number": "306341450760",
+    "project_id": "neqati-b3ccf",
+    "storage_bucket": "neqati-b3ccf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:306341450760:android:9a4d4b0b21617e31292dbd",
+        "android_client_info": {
+          "package_name": "com.example.neqati"
         }
-    ],
-    "configuration_version": "1"
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5O4zdwuO4BDL9y9qTOe0s-0Xn9nlv2Rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:306341450760:android:b41de4385eab2464292dbd",
+        "android_client_info": {
+          "package_name": "neqati.app.scan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5O4zdwuO4BDL9y9qTOe0s-0Xn9nlv2Rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }

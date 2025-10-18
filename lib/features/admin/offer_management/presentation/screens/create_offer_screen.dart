@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:neqati/core/presentation/widgets/app_container.dart';
 import 'package:neqati/core/presentation/widgets/app_form_field.dart';
 import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/core/presentation/widgets/app_text.dart';
+import 'package:neqati/core/services/storage_service.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
 import 'package:neqati/features/admin/offer_management/cubit/offer_management_cubit.dart';
@@ -20,27 +23,117 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _imageUrlController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  File? _selectedImage;
+  bool _isUploading = false;
+  late StorageService _storageService;
+
+  @override
+  void initState() {
+    super.initState();
+    _storageService = StorageService();
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _imageUrlController.dispose();
     super.dispose();
   }
 
-  void _createOffer() {
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_selectedImage == null) return null;
+
+    try {
+      setState(() {
+        _isUploading = true;
+      });
+
+      final imageUrl = await _storageService.uploadImage(
+        _selectedImage!,
+        'offers',
+      );
+      return imageUrl;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل رفع الصورة: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return null;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: AppText('اختر مصدر الصورة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.deepTeal),
+              title: AppText('الكاميرا'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.deepTeal),
+              title: AppText('المعرض'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createOffer() async {
     if (_formKey.currentState!.validate()) {
       final title = _titleController.text.trim();
       final description = _descriptionController.text.trim();
-      final imageUrl = _imageUrlController.text.trim();
 
-      context.read<OfferManagementCubit>().createOffer(
-        title: title,
-        description: description,
-        imageUrl: imageUrl.isEmpty ? '' : imageUrl,
-      );
+      // Upload image if selected
+      String? imageUrl;
+      if (_selectedImage != null) {
+        imageUrl = await _uploadImage();
+        if (imageUrl == null) {
+          // Upload failed, don't proceed
+          return;
+        }
+      }
+
+      if (mounted) {
+        context.read<OfferManagementCubit>().createOffer(
+          title: title,
+          description: description,
+          imageUrl: imageUrl ?? '',
+        );
+      }
     }
   }
 
@@ -76,7 +169,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
           }
         },
         builder: (context, state) {
-          if (state is OfferManagementLoading) {
+          if (state is OfferManagementLoading || _isUploading) {
             return const Center(child: AppLoading());
           }
 
@@ -131,13 +224,67 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                           
                           const SizedBox(height: AppDimensions.medium),
                           
-                          // Image URL Field (Optional)
-                          _buildTextField(
-                            controller: _imageUrlController,
-                            label: 'رابط الصورة (اختياري)',
-                            icon: Icons.image,
-                            keyboardType: TextInputType.url,
-                            validator: null, // Optional field
+                          // Image Upload Section
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.image, color: AppColors.deepTeal, size: 20),
+                                  const SizedBox(width: 8),
+                                  AppText(
+                                    'صورة العرض (اختياري)',
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.deepTeal,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (_selectedImage != null)
+                                Container(
+                                  height: 150,
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.deepTeal),
+                                    image: DecorationImage(
+                                      image: FileImage(_selectedImage!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _showImageSourceDialog,
+                                      icon: const Icon(Icons.add_photo_alternate),
+                                      label: AppText(
+                                        _selectedImage == null ? 'اختيار صورة' : 'تغيير الصورة',
+                                        isSmall: true,
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.deepTeal,
+                                        side: const BorderSide(color: AppColors.deepTeal),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_selectedImage != null) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedImage = null;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      tooltip: 'حذف الصورة',
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),

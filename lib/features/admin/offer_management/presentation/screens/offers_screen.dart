@@ -126,7 +126,6 @@ class _OffersManagementScreenState extends State<OffersManagementScreen> {
   Widget _buildOfferCard(Map<String, dynamic> offer) {
     final isActive = offer['is_active'] as bool? ?? false;
     final offerId = offer['id']?.toString() ?? '';
-
     return AppContainer(
       margin: const EdgeInsets.only(bottom: AppDimensions.small),
       child: Padding(
@@ -135,7 +134,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen> {
           children: [
             Row(
               children: [
-                // Offer image placeholder
+                // Offer image or placeholder
                 Container(
                   width: 60,
                   height: 60,
@@ -146,10 +145,35 @@ class _OffersManagementScreenState extends State<OffersManagementScreen> {
                             : AppColors.lightText.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.local_offer,
-                    color: isActive ? AppColors.deepTeal : AppColors.lightText,
-                    size: 30,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child:
+                        offer['image_url'] != null &&
+                                offer['image_url'].toString().isNotEmpty
+                            ? Image.network(
+                              offer['image_url'],
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.local_offer,
+                                  color:
+                                      isActive
+                                          ? AppColors.deepTeal
+                                          : AppColors.lightText,
+                                  size: 30,
+                                );
+                              },
+                            )
+                            : Icon(
+                              Icons.local_offer,
+                              color:
+                                  isActive
+                                      ? AppColors.deepTeal
+                                      : AppColors.lightText,
+                              size: 30,
+                            ),
                   ),
                 ),
                 const SizedBox(width: AppDimensions.medium),

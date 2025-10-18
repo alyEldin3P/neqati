@@ -70,15 +70,6 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                   'المستخدم: ${request.userName}',
                   fontWeight: FontWeight.bold,
                 ),
-                // const SizedBox(height: AppDimensions.medium),
-                // TextField(
-                //   controller: notesController,
-                //   decoration: const InputDecoration(
-                //     labelText: 'ملاحظات إضافية (اختياري)',
-                //     hintText: 'أدخل أي ملاحظات للمستخدم',
-                //   ),
-                //   maxLines: 3,
-                // ),
               ],
             ),
             actions: [

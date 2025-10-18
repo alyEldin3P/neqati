@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,6 +30,7 @@ void main() async {
   dev.log('App: Starting application initialization');
   WidgetsFlutterBinding.ensureInitialized();
   dev.log('App: WidgetsFlutterBinding initialized');
+  // await Firebase.initializeApp();
 
   // Initialize Supabase
   dev.log('App: Initializing Supabase');
@@ -147,6 +149,7 @@ class MyApp extends StatelessWidget {
             dev.log('MyApp: Creating LevelManagementCubit');
             return LevelManagementCubit(
               levelService: DependencyInjector().levelService,
+              userService: DependencyInjector().userService,
             );
           },
         ),
@@ -172,6 +175,7 @@ class MyApp extends StatelessWidget {
             dev.log('MyApp: Creating GiftCubit');
             return GiftCubit(
               giftService: DependencyInjector().giftService,
+              authCubit: context.read<AuthCubit>(),
               onGiftRequestSuccess: () {
                 // Refresh user data after successful gift request
                 final authCubit = context.read<AuthCubit>();
@@ -206,6 +210,7 @@ class MyApp extends StatelessWidget {
             dev.log('MyApp: Creating QRScanCubit');
             return QRScanCubit(
               qrCodeService: DependencyInjector().qrCodeService,
+              authCubit: context.read<AuthCubit>(),
               onScanSuccess: () {
                 // Refresh user data after successful scan
                 final authCubit = context.read<AuthCubit>();
@@ -233,7 +238,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'نقاطي',
+        title: 'ابوراية الكل كسبان',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         navigatorKey: DependencyInjector().navigationService.navigatorKey,

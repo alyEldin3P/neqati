@@ -5,6 +5,7 @@ import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/core/presentation/widgets/app_text.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
+import 'package:neqati/core/utils/app_validators.dart';
 import 'package:neqati/features/admin/user_management/cubit/user_management_cubit.dart';
 import 'package:neqati/features/admin/user_management/cubit/user_management_state.dart';
 
@@ -180,14 +181,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     _buildTextField(
                       controller: _nationalIdController,
                       label: 'رقم الهوية',
-                      hint: 'أدخل رقم الهوية',
+                      hint: '14 رقم',
                       icon: Icons.badge,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'الرجاء إدخال رقم الهوية';
-                        }
-                        return null;
-                      },
+                      keyboardType: TextInputType.number,
+                      validator: AppValidators.validateNationalId,
                     ),
                     const SizedBox(height: AppDimensions.medium),
 

@@ -11,7 +11,9 @@ class AppLocalizations {
   }
 
   // Singleton factory
-  static final AppLocalizations _instance = AppLocalizations(const Locale('ar'));
+  static final AppLocalizations _instance = AppLocalizations(
+    const Locale('ar'),
+  );
 
   // Getter for singleton instance
   static AppLocalizations get instance => _instance;
@@ -19,7 +21,7 @@ class AppLocalizations {
   // Arabic translations
   static final Map<String, String> _localizedValues = {
     // General
-    'app_name': 'نقاطي',
+    'app_name': 'ابوراية الكل كسبان',
     'loading': 'جاري التحميل...',
     'error': 'حدث خطأ',
     'success': 'تم بنجاح',
@@ -29,7 +31,7 @@ class AppLocalizations {
     'back': 'رجوع',
     'next': 'التالي',
     'done': 'تم',
-    
+
     // Auth
     'login': 'تسجيل الدخول',
     'register': 'تسجيل جديد',
@@ -44,9 +46,10 @@ class AppLocalizations {
     'contractor': 'مقاول',
     'engineer': 'مهندس',
     'technician': 'فني',
-    'account_not_verified': 'حسابك قيد المراجعة من قبل الإدارة. يرجى المحاولة لاحقاً.',
+    'account_not_verified':
+        'حسابك قيد المراجعة من قبل الإدارة. يرجى المحاولة لاحقاً.',
     'register_success': 'تم التسجيل بنجاح. يرجى انتظار موافقة الإدارة.',
-    
+
     // Home
     'home': 'الرئيسية',
     'scan': 'مسح',
@@ -59,24 +62,24 @@ class AppLocalizations {
     'scan_qr': 'مسح رمز QR',
     'scan_success': 'تم المسح بنجاح',
     'points_earned': 'النقاط المكتسبة',
-    
+
     // Profile
     'edit_profile': 'تعديل الملف الشخصي',
     'current_level': 'المستوى الحالي',
     'points_to_next_level': 'النقاط المتبقية للمستوى التالي',
     'logout': 'تسجيل الخروج',
-    
+
     // Gifts
     'available_gifts': 'الهدايا المتاحة',
     'required_points': 'النقاط المطلوبة',
     'request_gift': 'طلب الهدية',
     'gift_requested': 'تم طلب الهدية بنجاح',
     'insufficient_points': 'نقاط غير كافية',
-    
+
     // Offers
     'available_offers': 'العروض المتاحة',
     'no_offers': 'لا توجد عروض متاحة حالياً',
-    
+
     // Admin
     'admin_panel': 'لوحة الإدارة',
     'users': 'المستخدمين',
@@ -112,7 +115,7 @@ class AppLocalizations {
 
   String translate(String key) {
     return _localizedValues[key] ?? key;
-}
+  }
 }
 
 // Extension to make it easier to use translations

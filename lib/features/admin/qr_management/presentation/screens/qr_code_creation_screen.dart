@@ -23,7 +23,7 @@ class _QRCodeCreationScreenState extends State<QRCodeCreationScreen> {
   final _expiryDurationController = TextEditingController(
     text: '30',
   ); // Default 30 days
-  Branch _selectedBranch = Branch.riyadh; // Default to first branch
+  Branch _selectedBranch = Branch.glc; // Default to first branch
   String? _qrCodeData;
   String? _qrCodeId;
   bool _isLoading = false;
@@ -52,7 +52,7 @@ class _QRCodeCreationScreenState extends State<QRCodeCreationScreen> {
   void _resetForm() {
     setState(() {
       _pointsController.clear();
-      _selectedBranch = Branch.riyadh;
+      _selectedBranch = Branch.glc;
       _expiryDurationController.text = '30';
       _qrCodeData = null;
       _qrCodeId = null;
@@ -241,7 +241,7 @@ class _QRCodeCreationScreenState extends State<QRCodeCreationScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AppText('معرف الرمز: $_qrCodeId'),
+                  Flexible(child: AppText('معرف الرمز: $_qrCodeId')),
                   IconButton(
                     icon: const Icon(Icons.copy, size: 20),
                     onPressed: () => _copyToClipboard(_qrCodeId!),

@@ -73,11 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    Icon(Icons.error_outline, color: Colors.white, size: 20),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -105,11 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    Icon(Icons.info_outline, color: Colors.white, size: 20),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -131,6 +123,34 @@ class _LoginScreenState extends State<LoginScreen> {
                 duration: Duration(seconds: 4),
               ),
             );
+          } else if (state is AuthBlocked) {
+            dev.log('LoginScreen: User is blocked');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.block, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'تم حظر حسابك من قبل الإدارة. يرجى التواصل مع الدعم الفني.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppColors.alertRed,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                margin: EdgeInsets.all(16),
+                duration: Duration(seconds: 5),
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -146,29 +166,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       // Logo
                       Center(
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          height: 120,
-                          // If logo asset doesn't exist yet, use a placeholder
-                          errorBuilder:
-                              (context, error, stackTrace) => Container(
-                                height: 120,
-                                width: 120,
-                                decoration: BoxDecoration(
-                                  color: AppColors.deepTeal,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    'نقاطي',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                        child: Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            image: DecorationImage(
+                              image: AssetImage(
+                                'assets/images/app_icon_trans.png',
                               ),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                       ),
                       SizedBox(height: AppDimensions.large),

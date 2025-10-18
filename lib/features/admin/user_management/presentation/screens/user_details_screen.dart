@@ -7,12 +7,12 @@ import 'package:neqati/core/services/scan_service.dart';
 import 'package:neqati/core/services/user_service.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
-import 'package:neqati/core/services/supabase_service.dart';
 import 'package:neqati/features/admin/user_management/cubit/user_management_cubit.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_request_management_cubit.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_request_management_state.dart';
 import 'package:neqati/features/admin/gift_management/model/gift_request.dart';
 import 'package:neqati/features/auth/model/user.dart';
+import 'package:neqati/features/admin/user_management/presentation/screens/user_scan_history_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   final String userId;
@@ -292,19 +292,18 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
             },
           ),
 
-          // Make admin
-          if (!_user!.isAdmin)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                Icons.admin_panel_settings,
-                color: Colors.purple,
-              ),
-              title: AppText('ترقية إلى مدير'),
-              onTap: () {
-                _showMakeAdminDialog();
-              },
+          // Toggle admin status
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              _user!.isAdmin ? Icons.remove_moderator : Icons.admin_panel_settings,
+              color: _user!.isAdmin ? Colors.orange : Colors.purple,
             ),
+            title: AppText(_user!.isAdmin ? 'إلغاء صلاحيات المدير' : 'ترقية إلى مدير'),
+            onTap: () {
+              _showToggleAdminDialog();
+            },
+          ),
         ],
       ),
     );
@@ -353,7 +352,14 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           if (_scanHistory.isNotEmpty)
             TextButton(
               onPressed: () {
-                // Navigate to full scan history
+                if (_user != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserScanHistoryScreen(user: _user!),
+                    ),
+                  );
+                }
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -735,13 +741,20 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  void _showMakeAdminDialog() {
+  void _showToggleAdminDialog() {
+    final isAdmin = _user!.isAdmin;
+    final action = isAdmin ? 'إلغاء صلاحيات المدير' : 'ترقية إلى مدير';
+    final message =
+        isAdmin
+            ? 'هل أنت متأكد من إلغاء صلاحيات المدير لـ ${_user!.name}؟'
+            : 'هل أنت متأكد من ترقية ${_user!.name} إلى مدير؟';
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: AppText('ترقية إلى مدير'),
-            content: AppText('هل أنت متأكد من ترقية ${_user!.name} إلى مدير؟'),
+            title: AppText(action),
+            content: AppText(message),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -751,22 +764,34 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 onPressed: () async {
                   Navigator.pop(context);
                   try {
-                    await _userService.updateUserData(_user!.id, {
-                      'is_admin': true,
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تمت الترقية إلى مدير بنجاح'),
-                      ),
+                    await context.read<UserManagementCubit>().toggleAdminStatus(
+                      _user!.id,
+                      !isAdmin,
                     );
-                    _loadUserData();
-                  } catch (error) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('حدث خطأ: ${error.toString()}')),
-                    );
+                    await _loadUserData(); // Refetch user data after successful action
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isAdmin
+                                ? 'تم إلغاء صلاحيات المدير بنجاح'
+                                : 'تمت الترقية إلى مدير بنجاح',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('حدث خطأ: ${e.toString()}')),
+                      );
+                    }
                   }
                 },
-                child: AppText('تأكيد', color: Colors.purple),
+                child: AppText(
+                  'تأكيد',
+                  color: isAdmin ? Colors.orange : Colors.purple,
+                ),
               ),
             ],
           ),

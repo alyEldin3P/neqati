@@ -2,7 +2,7 @@
 
 ## Brand Overview
 
-Neqati (نقاطي) is an Arabic loyalty points app designed for contractors, engineers, and technicians in the construction industry. The name "Neqati" means "My Points" in Arabic, emphasizing the personal ownership of rewards earned through the app.
+Neqati (ابوراية الكل كسبان) is an Arabic loyalty points app designed for contractors, engineers, and technicians in the construction industry. The name "Neqati" means "My Points" in Arabic, emphasizing the personal ownership of rewards earned through the app.
 
 ## Brand Values
 
@@ -14,7 +14,7 @@ Neqati (نقاطي) is an Arabic loyalty points app designed for contractors, en
 ## Logo
 
 The Neqati logo combines Arabic calligraphy with modern design elements:
-- Primary logo: Stylized "نقاطي" text with an accent point symbol
+- Primary logo: Stylized "ابوراية الكل كسبان" text with an accent point symbol
 - App icon: Simplified point symbol in the primary color
 - Clear space: Maintain padding of at least the height of the point symbol around the logo
 

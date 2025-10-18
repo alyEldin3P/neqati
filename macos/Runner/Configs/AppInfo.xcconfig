@@ -8,7 +8,7 @@
 PRODUCT_NAME = neqati
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.neqati
+PRODUCT_BUNDLE_IDENTIFIER = neqati.app.scan
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.

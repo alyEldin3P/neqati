@@ -2,8 +2,8 @@ import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:neqati/core/services/auth_service.dart';
 import 'package:neqati/core/services/user_service.dart';
+import 'package:neqati/core/services/fcm_notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/services/supabase_service.dart';
 import '../../../core/services/session_manager.dart';
 import '../../../core/services/dependency_injector.dart';
 
@@ -13,11 +13,13 @@ class AuthCubit extends Cubit<AuthState> {
   final SessionManager _sessionManager;
   final AuthService _authService;
   final UserService _userService;
+  // final FCMNotificationService _fcmService;
 
   AuthCubit({SessionManager? sessionManager})
     : _sessionManager = sessionManager ?? DependencyInjector().sessionManager,
       _authService = DependencyInjector().authService,
       _userService = DependencyInjector().userService,
+      // _fcmService = DependencyInjector().fcmNotificationService,
       super(AuthInitial());
 
   // Check current authentication state
@@ -32,6 +34,23 @@ class AuthCubit extends Cubit<AuthState> {
         if (isVerified) {
           final isAdmin = await _authService.isUserAdmin(user.id);
           final userData = await _userService.getUserData(user.id);
+
+          // Check if user is blocked
+          final isBlocked = userData?['is_blocked'] as bool? ?? false;
+          if (isBlocked) {
+            log('AuthCubit: User is blocked during session check');
+            // Sign out blocked user
+            await _authService.signOut();
+            // Clear saved credentials for blocked users
+            await _sessionManager.clearLoginCredentials();
+            emit(AuthBlocked());
+            return;
+          }
+
+          // Save FCM device token for existing session
+          log('AuthCubit: Saving FCM device token for existing session');
+          // await _fcmService.saveDeviceToken();
+
           emit(
             AuthAuthenticated(
               user: user,
@@ -109,6 +128,18 @@ class AuthCubit extends Cubit<AuthState> {
         final isAdmin = await _authService.isUserAdmin(user.id);
         final userData = await _userService.getUserData(user.id);
 
+        // Check if user is blocked
+        final isBlocked = userData?['is_blocked'] as bool? ?? false;
+        if (isBlocked) {
+          log('AuthCubit: User is blocked');
+          // Sign out blocked user
+          await _authService.signOut();
+          // Clear saved credentials for blocked users
+          await _sessionManager.clearLoginCredentials();
+          emit(AuthBlocked());
+          return;
+        }
+
         // Save credentials for remember me (only for manual login)
         if (!isAutoLogin) {
           log('AuthCubit: Saving login credentials for remember me');
@@ -121,6 +152,10 @@ class AuthCubit extends Cubit<AuthState> {
           // Update last login time for auto login
           await _sessionManager.updateLastLoginTime();
         }
+
+        // Save FCM device token after successful login
+        log('AuthCubit: Saving FCM device token after login');
+        // await _fcmService.saveDeviceToken();
 
         emit(
           AuthAuthenticated(user: user, userData: userData!, isAdmin: isAdmin),
@@ -257,6 +292,18 @@ class AuthCubit extends Cubit<AuthState> {
         // Keep the current state if refresh fails
         // but don't emit an error to avoid disrupting the UI
       }
+    }
+  }
+
+  // Check if user is blocked by fetching fresh user data
+  Future<bool> isUserBlocked(String userId) async {
+    try {
+      final userData = await _userService.getUserData(userId);
+      return userData?['is_blocked'] as bool? ?? false;
+    } catch (e) {
+      log('AuthCubit: Error checking user blocked status: $e');
+      // Return true as a safety measure if we can't verify
+      return true;
     }
   }
 }

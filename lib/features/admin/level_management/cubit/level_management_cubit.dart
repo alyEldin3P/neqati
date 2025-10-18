@@ -1,13 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:neqati/core/services/level_service.dart';
+import 'package:neqati/core/services/user_service.dart';
 import 'package:neqati/features/admin/level_management/cubit/level_management_state.dart';
 
 class LevelManagementCubit extends Cubit<LevelManagementState> {
   final LevelService _levelService;
+  final UserService _userService;
 
-  LevelManagementCubit({required LevelService levelService})
-    : _levelService = levelService,
-      super(LevelManagementInitial());
+  LevelManagementCubit({
+    required LevelService levelService,
+    required UserService userService,
+  })  : _levelService = levelService,
+        _userService = userService,
+        super(LevelManagementInitial());
 
   // Level Management
   Future<void> loadLevels() async {
@@ -88,6 +93,27 @@ class LevelManagementCubit extends Cubit<LevelManagementState> {
       );
     } catch (e) {
       emit(LevelManagementError('Failed to delete level: ${e.toString()}'));
+    }
+  }
+
+  // Bulk reset all users to a specific level
+  Future<void> resetAllUsersToLevel(String levelName) async {
+    try {
+      emit(LevelManagementLoading());
+
+      final count = await _userService.resetAllUsersToLevel(levelName);
+
+      emit(
+        LevelActionSuccess(
+          message: 'تم إعادة تعيين $count مستخدم إلى مستوى $levelName بنجاح',
+          levelId: '',
+          action: 'bulk_reset',
+        ),
+      );
+    } catch (e) {
+      emit(
+        LevelManagementError('فشل إعادة تعيين المستويات: ${e.toString()}'),
+      );
     }
   }
 }

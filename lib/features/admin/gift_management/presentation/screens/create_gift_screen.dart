@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:neqati/core/presentation/widgets/app_container.dart';
 import 'package:neqati/core/presentation/widgets/app_form_field.dart';
 import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/core/presentation/widgets/app_text.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
+import 'package:neqati/core/services/storage_service.dart';
+import 'package:neqati/core/services/dependency_injector.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_management_cubit.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_management_state.dart';
 
@@ -21,30 +25,84 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
   final _nameController = TextEditingController();
   final _pointsController = TextEditingController();
   final _stockController = TextEditingController();
-  final _imageUrlController = TextEditingController();
+
+  File? _selectedImage;
+  bool _isUploadingImage = false;
+  final ImagePicker _imagePicker = ImagePicker();
+  final StorageService _storageService = DependencyInjector().storageService;
 
   @override
   void dispose() {
     _nameController.dispose();
     _pointsController.dispose();
     _stockController.dispose();
-    _imageUrlController.dispose();
     super.dispose();
   }
 
-  void _createGift() {
-    if (_formKey.currentState!.validate()) {
-      final name = _nameController.text.trim();
-      final points = int.tryParse(_pointsController.text.trim()) ?? 0;
-      final stock = int.tryParse(_stockController.text.trim()) ?? 0;
-      final imageUrl = _imageUrlController.text.trim();
-
-      context.read<GiftManagementCubit>().createGift(
-        name: name,
-        points: points,
-        stock: stock,
-        imageUrl: imageUrl.isEmpty ? '' : imageUrl,
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
       );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في اختيار الصورة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _createGift() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      try {
+        final name = _nameController.text.trim();
+        final points = int.tryParse(_pointsController.text.trim()) ?? 0;
+        final stock = int.tryParse(_stockController.text.trim()) ?? 0;
+
+        String? imageUrl;
+
+        // Upload image if selected
+        if (_selectedImage != null) {
+          imageUrl = await _storageService.uploadImage(
+            _selectedImage!,
+            'gifts',
+          );
+        }
+
+        // Create gift with uploaded image URL
+        context.read<GiftManagementCubit>().createGift(
+          name: name,
+          points: points,
+          stock: stock,
+          imageUrl: imageUrl ?? '',
+        );
+      } catch (e) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في رفع الصورة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -63,6 +121,9 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
       body: BlocConsumer<GiftManagementCubit, GiftManagementState>(
         listener: (context, state) {
           if (state is GiftActionSuccess && state.action == 'create') {
+            setState(() {
+              _isUploadingImage = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -71,6 +132,9 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
             );
             Navigator.pop(context);
           } else if (state is GiftManagementError) {
+            setState(() {
+              _isUploadingImage = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -159,14 +223,8 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
 
                           const SizedBox(height: AppDimensions.medium),
 
-                          // Image URL Field (Optional)
-                          _buildTextField(
-                            controller: _imageUrlController,
-                            label: 'رابط الصورة (اختياري)',
-                            icon: Icons.image,
-                            keyboardType: TextInputType.url,
-                            validator: null, // Optional field
-                          ),
+                          // Image Upload Section
+                          _buildImageUploadSection(),
                         ],
                       ),
                     ),
@@ -176,9 +234,10 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
 
                   // Create Button
                   ElevatedButton(
-                    onPressed: _createGift,
+                    onPressed: _isUploadingImage ? null : _createGift,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.deepTeal,
+                      disabledBackgroundColor: AppColors.lightText,
                       padding: const EdgeInsets.symmetric(
                         vertical: AppDimensions.medium,
                       ),
@@ -186,11 +245,34 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: AppText(
-                      'إنشاء الهدية',
-                      color: AppColors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    child:
+                        _isUploadingImage
+                            ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                AppText(
+                                  'جاري إنشاء الهدية...',
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ],
+                            )
+                            : AppText(
+                              'إنشاء الهدية',
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                   ),
                 ],
               ),
@@ -198,6 +280,78 @@ class _CreateGiftScreenState extends State<CreateGiftScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.image, color: AppColors.deepTeal, size: 20),
+            const SizedBox(width: 8),
+            AppText(
+              'صورة الهدية (اختياري)',
+              fontWeight: FontWeight.w500,
+              color: AppColors.deepTeal,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Image preview or placeholder
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            color: AppColors.lightTeal.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.lightTeal),
+          ),
+          child:
+              _selectedImage != null
+                  ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  )
+                  : _buildImagePlaceholder(),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Image action button
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.photo_library),
+            label: AppText(
+              _selectedImage != null ? 'تغيير الصورة' : 'اختيار صورة',
+              isSmall: true,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.deepTeal,
+              side: BorderSide(color: AppColors.deepTeal),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_photo_alternate, size: 48, color: AppColors.lightText),
+        const SizedBox(height: 8),
+        AppText(
+          'اضغط لاختيار صورة الهدية',
+          color: AppColors.lightText,
+          isSmall: true,
+        ),
+      ],
     );
   }
 

@@ -129,7 +129,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
         padding: const EdgeInsets.all(AppDimensions.small),
         child: Row(
           children: [
-            // Gift image placeholder
+            // Gift image or placeholder
             Container(
               width: 60,
               height: 60,
@@ -137,10 +137,27 @@ class _GiftsScreenState extends State<GiftsScreen> {
                 color: AppColors.deepTeal.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.card_giftcard,
-                color: AppColors.deepTeal,
-                size: 30,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: gift['image_url'] != null && gift['image_url'].toString().isNotEmpty
+                    ? Image.network(
+                        gift['image_url'],
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.card_giftcard,
+                            color: AppColors.deepTeal,
+                            size: 30,
+                          );
+                        },
+                      )
+                    : Icon(
+                        Icons.card_giftcard,
+                        color: AppColors.deepTeal,
+                        size: 30,
+                      ),
               ),
             ),
             const SizedBox(width: AppDimensions.medium),

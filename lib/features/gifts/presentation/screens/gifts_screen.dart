@@ -338,11 +338,15 @@ class _GiftsScreenState extends State<GiftsScreen> {
                 final giftName = gift['name'] as String? ?? 'هدية ${index + 1}';
                 final giftPoints = gift['points'] as int? ?? 0;
                 final imageUrl = gift['image_url'] as String?; // Fixed field name
+                final stock = gift['stock'] as int? ?? 0;
+                final isOutOfStock = stock <= 0;
                 final canAfford = state.userPoints >= giftPoints;
                 
-                developer.log('🎁 GiftsScreen: Gift $index - Name: $giftName, Points: $giftPoints, ImageURL: $imageUrl, CanAfford: $canAfford');
+                developer.log('🎁 GiftsScreen: Gift $index - Name: $giftName, Points: $giftPoints, Stock: $stock, ImageURL: $imageUrl, CanAfford: $canAfford');
 
-                return AppContainer(
+                return Opacity(
+                  opacity: isOutOfStock ? 0.4 : 1.0,
+                  child: AppContainer(
                   padding: EdgeInsets.zero,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -429,7 +433,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed:
-                                      canAfford
+                                      (canAfford && !isOutOfStock)
                                           ? () => _requestGift(gift)
                                           : null,
                                   style: ElevatedButton.styleFrom(
@@ -439,7 +443,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
                                     padding: EdgeInsets.symmetric(vertical: 8),
                                   ),
                                   child: AppText(
-                                    'طلب الهدية',
+                                    isOutOfStock ? 'نفذت الكمية' : 'طلب الهدية',
                                     color: AppColors.white,
                                     isSmall: true,
                                   ),
@@ -451,6 +455,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
                       ),
                     ],
                   ),
+                ),
                 );
               },
             ),

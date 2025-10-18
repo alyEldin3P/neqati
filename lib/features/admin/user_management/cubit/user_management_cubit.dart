@@ -12,10 +12,7 @@ class UserManagementCubit extends Cubit<UserManagementState> {
       super(UserManagementInitial());
 
   // User Management
-  Future<void> loadUsers({
-    int limit = 20,
-    int offset = 0,
-  }) async {
+  Future<void> loadUsers({int limit = 20, int offset = 0}) async {
     try {
       emit(UserManagementLoading());
 
@@ -24,9 +21,10 @@ class UserManagementCubit extends Cubit<UserManagementState> {
         offset: offset,
       );
 
-      final users = usersData.map((data) {
-        return AppUser.fromSupabase(data, data['id']);
-      }).toList();
+      final users =
+          usersData.map((data) {
+            return AppUser.fromSupabase(data, data['id']);
+          }).toList();
 
       final hasMore = usersData.length == limit;
 
@@ -42,13 +40,16 @@ class UserManagementCubit extends Cubit<UserManagementState> {
 
       final pendingUsersData = await _userService.getPendingUsers();
 
-      final pendingUsers = pendingUsersData.map((data) {
-        return AppUser.fromSupabase(data, data['id']);
-      }).toList();
+      final pendingUsers =
+          pendingUsersData.map((data) {
+            return AppUser.fromSupabase(data, data['id']);
+          }).toList();
 
       emit(PendingUsersLoaded(pendingUsers));
     } catch (e) {
-      emit(UserManagementError('Failed to load pending users: ${e.toString()}'));
+      emit(
+        UserManagementError('Failed to load pending users: ${e.toString()}'),
+      );
     }
   }
 
@@ -87,7 +88,36 @@ class UserManagementCubit extends Cubit<UserManagementState> {
         ),
       );
     } catch (e) {
-      emit(UserManagementError('Failed to update user block status: ${e.toString()}'));
+      emit(
+        UserManagementError(
+          'Failed to update user block status: ${e.toString()}',
+        ),
+      );
+    }
+  }
+
+  Future<void> toggleAdminStatus(String userId, bool isAdmin) async {
+    try {
+      emit(UserManagementLoading());
+
+      await _userService.toggleAdminStatus(userId, isAdmin);
+
+      final message =
+          isAdmin ? 'تمت الترقية إلى مدير بنجاح' : 'تم إلغاء صلاحيات المدير بنجاح';
+
+      emit(
+        UserActionSuccess(
+          message: message,
+          userId: userId,
+          action: isAdmin ? 'make_admin' : 'remove_admin',
+        ),
+      );
+    } catch (e) {
+      emit(
+        UserManagementError(
+          'Failed to update user admin status: ${e.toString()}',
+        ),
+      );
     }
   }
 
@@ -105,7 +135,9 @@ class UserManagementCubit extends Cubit<UserManagementState> {
         ),
       );
     } catch (e) {
-      emit(UserManagementError('Failed to update user points: ${e.toString()}'));
+      emit(
+        UserManagementError('Failed to update user points: ${e.toString()}'),
+      );
     }
   }
 
@@ -129,12 +161,16 @@ class UserManagementCubit extends Cubit<UserManagementState> {
 
   Future<void> createUser(Map<String, dynamic> userData) async {
     try {
-      print('UserManagementCubit: Starting createUser with userData: $userData');
+      print(
+        'UserManagementCubit: Starting createUser with userData: $userData',
+      );
       emit(UserManagementLoading());
 
       print('UserManagementCubit: Calling SupabaseService.createUser...');
       final userId = await _userService.createUser(userData);
-      print('UserManagementCubit: SupabaseService.createUser completed with userId: $userId');
+      print(
+        'UserManagementCubit: SupabaseService.createUser completed with userId: $userId',
+      );
 
       emit(
         UserActionSuccess(

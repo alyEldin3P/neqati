@@ -69,13 +69,25 @@ class UserService {
   // Admin user management methods
   Future<List<Map<String, dynamic>>> getPendingUsers() async {
     try {
+      // Get pending registration requests with user data
       final response = await _supabase
-          .from('users')
-          .select()
-          .eq('is_approved', false)
-          .eq('is_rejected', false);
+          .from('registration_requests')
+          .select('*, users(*)')
+          .eq('status', 'pending')
+          .order('request_date', ascending: false);
 
-      return List<Map<String, dynamic>>.from(response);
+      // Extract user data from the joined response
+      final users = <Map<String, dynamic>>[];
+      for (var request in response) {
+        if (request['users'] != null) {
+          final userData = Map<String, dynamic>.from(request['users']);
+          // Add request_id to user data for later use
+          userData['request_id'] = request['id'];
+          users.add(userData);
+        }
+      }
+
+      return users;
     } catch (e) {
       throw Exception('Failed to get pending users: $e');
     }
@@ -138,10 +150,18 @@ class UserService {
 
   Future<void> verifyUser(String userId) async {
     try {
+      // Update user verification status
       await _supabase
           .from('users')
-          .update({'is_verified': true})
+          .update({'is_verified': true, 'is_approved': true})
           .eq('id', userId);
+
+      // Update registration request status to approved
+      await _supabase
+          .from('registration_requests')
+          .update({'status': 'approved'})
+          .eq('user_id', userId)
+          .eq('status', 'pending');
     } catch (e) {
       throw Exception('Failed to verify user: $e');
     }
@@ -155,6 +175,17 @@ class UserService {
           .eq('id', userId);
     } catch (e) {
       throw Exception('Failed to update user block status: $e');
+    }
+  }
+
+  Future<void> toggleAdminStatus(String userId, bool isAdmin) async {
+    try {
+      await _supabase
+          .from('users')
+          .update({'is_admin': isAdmin})
+          .eq('id', userId);
+    } catch (e) {
+      throw Exception('Failed to update user admin status: $e');
     }
   }
 
@@ -178,6 +209,14 @@ class UserService {
 
   Future<void> deleteUser(String userId) async {
     try {
+      // Update registration request status to rejected before deleting user
+      await _supabase
+          .from('registration_requests')
+          .update({'status': 'rejected'})
+          .eq('user_id', userId)
+          .eq('status', 'pending');
+
+      // Delete the user
       await _supabase.from('users').delete().eq('id', userId);
     } catch (e) {
       throw Exception('Failed to delete user: $e');
@@ -187,13 +226,15 @@ class UserService {
   Future<String> createUser(Map<String, dynamic> userData) async {
     try {
       log('UserService: Starting createUser with userData: $userData');
-      
+
       // Extract password and email for auth creation
       final String email = userData['email'];
       final String password = userData['password'];
-      
-      log('UserService: Extracted email: $email, password length: ${password.length}');
-      
+
+      log(
+        'UserService: Extracted email: $email, password length: ${password.length}',
+      );
+
       // Remove password from userData as it shouldn't be stored in the database
       userData.remove('password');
       log('UserService: Removed password from userData');
@@ -210,21 +251,24 @@ class UserService {
         throw Exception('Failed to create user in authentication system');
       }
 
-      log('UserService: Auth user created successfully with ID: ${response.user!.id}');
+      log(
+        'UserService: Auth user created successfully with ID: ${response.user!.id}',
+      );
 
       // Create a new map for database insertion to avoid type conflicts
       final dbUserData = <String, dynamic>{
         'id': response.user!.id,
         'name': userData['name'] as String,
-        'email': email,  // Use the extracted email variable instead of userData['email']
+        'email':
+            email, // Use the extracted email variable instead of userData['email']
         'address': userData['address'] as String,
         'national_id': userData['national_id'] as String,
         'phone_number': userData['phone_number'] as String,
         'position': userData['position'] as String,
-        'is_verified': true,  // Admin-created users are immediately verified
+        'is_verified': true, // Admin-created users are immediately verified
         'is_blocked': false,
         'is_admin': false,
-        'is_approved': true,  // Admin-created users are automatically approved
+        'is_approved': true, // Admin-created users are automatically approved
         'is_rejected': false,
         'points': 0,
         'level': 'مبتدئ',
@@ -232,7 +276,9 @@ class UserService {
       };
 
       log('UserService: Prepared dbUserData for insertion: $dbUserData');
-      log('UserService: Data types - is_verified: ${dbUserData['is_verified'].runtimeType}, is_blocked: ${dbUserData['is_blocked'].runtimeType}, is_admin: ${dbUserData['is_admin'].runtimeType}');
+      log(
+        'UserService: Data types - is_verified: ${dbUserData['is_verified'].runtimeType}, is_blocked: ${dbUserData['is_blocked'].runtimeType}, is_admin: ${dbUserData['is_admin'].runtimeType}',
+      );
 
       // Create user profile in database
       log('UserService: Inserting user data into database...');
@@ -244,12 +290,36 @@ class UserService {
       await _supabase.auth.signOut();
       log('UserService: User signed out successfully');
 
-      log('UserService: createUser completed successfully, returning user ID: ${response.user!.id}');
+      log(
+        'UserService: createUser completed successfully, returning user ID: ${response.user!.id}',
+      );
       return response.user!.id;
     } catch (e) {
       log('UserService: createUser failed with error: $e');
       log('UserService: Error type: ${e.runtimeType}');
       throw Exception('Failed to create user: $e');
+    }
+  }
+
+  // Bulk reset all users to a specific level
+  Future<int> resetAllUsersToLevel(String levelName) async {
+    try {
+      print('🔄 Resetting all users to level: $levelName');
+      
+      // Update all users to the specified level
+      final response = await _supabase
+          .from('users')
+          .update({'level': levelName})
+          .neq('is_admin', true) // Don't reset admin users
+          .select('id');
+      
+      final count = response.length;
+      print('✅ Successfully reset $count users to level: $levelName');
+      
+      return count;
+    } catch (e) {
+      print('❌ Error resetting users to level: $e');
+      throw Exception('Failed to reset users to level: $e');
     }
   }
 }

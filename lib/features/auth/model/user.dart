@@ -9,6 +9,7 @@ class AppUser {
   final int points;
   final String level;
   final DateTime? createdAt;
+  final String? deviceToken;
 
   AppUser({
     required this.id,
@@ -21,6 +22,7 @@ class AppUser {
     this.points = 0,
     this.level = 'مبتدئ',
     this.createdAt,
+    this.deviceToken,
   });
 
   factory AppUser.fromSupabase(Map<String, dynamic> data, String id) {
@@ -38,6 +40,7 @@ class AppUser {
           data['created_at'] != null
               ? DateTime.parse(data['created_at'] as String)
               : null,
+      deviceToken: data['device_token'] as String?,
     );
   }
 
@@ -53,6 +56,7 @@ class AppUser {
       'points': points,
       'level': level,
       'created_at': createdAt?.toIso8601String(),
+      'device_token': deviceToken,
     };
   }
 
@@ -67,6 +71,7 @@ class AppUser {
     int? points,
     String? level,
     DateTime? createdAt,
+    String? deviceToken,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -79,6 +84,7 @@ class AppUser {
       points: points ?? this.points,
       level: level ?? this.level,
       createdAt: createdAt ?? this.createdAt,
+      deviceToken: deviceToken ?? this.deviceToken,
     );
   }
 }

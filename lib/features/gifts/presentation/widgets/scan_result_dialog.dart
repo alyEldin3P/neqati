@@ -97,9 +97,19 @@ class ScanResultDialog extends StatelessWidget {
             // Message
             if (message.isNotEmpty) ...[
               SizedBox(height: AppDimensions.small),
-              AppText(
-                message,
-                textAlign: TextAlign.center,
+              Container(
+                padding: EdgeInsets.all(AppDimensions.small),
+                decoration: BoxDecoration(
+                  color: isSuccess 
+                    ? AppColors.lightTeal.withValues(alpha: 0.3)
+                    : AppColors.alertRed.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppDimensions.small),
+                ),
+                child: AppText(
+                  message,
+                  textAlign: TextAlign.center,
+                  isSmall: !isSuccess, // Make error messages smaller if they're long
+                ),
               ),
             ],
             

@@ -2,20 +2,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/gift_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/services/dependency_injector.dart';
+import '../../auth/cubit/auth_cubit.dart';
 import 'gift_state.dart';
 import 'dart:developer' as developer;
 
 class GiftCubit extends Cubit<GiftState> {
   final GiftService _giftService;
   final UserService _userService;
+  final AuthCubit _authCubit;
   final Function()? onGiftRequestSuccess;
 
   GiftCubit({
     GiftService? giftService,
     UserService? userService,
+    required AuthCubit authCubit,
     this.onGiftRequestSuccess,
   })  : _giftService = giftService ?? DependencyInjector().giftService,
         _userService = userService ?? DependencyInjector().userService,
+        _authCubit = authCubit,
         super(GiftInitial());
 
   Future<void> loadGifts(String userId) async {
@@ -62,6 +66,16 @@ class GiftCubit extends Cubit<GiftState> {
     try {
       developer.log('🎁 GiftCubit: Starting gift request - User: $userId, Gift: $giftId, Points: $giftPoints');
       emit(GiftRequestLoading());
+
+      // Check if user is blocked (fetch fresh user data)
+      developer.log('🎁 GiftCubit: Checking if user is blocked...');
+      final isBlocked = await _authCubit.isUserBlocked(userId);
+      if (isBlocked) {
+        developer.log('❌ GiftCubit: User is blocked');
+        emit(const GiftRequestError('تم حظر حسابك. لا يمكنك طلب الهدايا في الوقت الحالي'));
+        return;
+      }
+      developer.log('✅ GiftCubit: User is not blocked, proceeding with gift request');
 
       // Check if user has enough points
       developer.log('🎁 GiftCubit: Checking points - User has: ${currentState.userPoints}, Required: $giftPoints');

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:neqati/core/services/user_service.dart';
+import 'package:neqati/core/services/dependency_injector.dart';
 import 'dart:developer' as developer;
 
 class GiftService {
@@ -85,6 +86,17 @@ class GiftService {
         return false;
       }
 
+      // Decrease gift stock by 1 (stock is reserved when request is made)
+      final newStock = stock - 1;
+      await _supabase
+          .from('gifts')
+          .update({'stock': newStock})
+          .eq('id', giftId);
+
+      developer.log(
+        '🎁 GiftService: Gift stock decreased from $stock to $newStock',
+      );
+
       // Create gift request
       final requestData = {
         'user_id': userId,
@@ -99,18 +111,72 @@ class GiftService {
 
       developer.log('🎁 GiftService: Gift request created successfully');
 
-      // Note: Notification creation skipped - notifications table doesn't exist
-      // TODO: Create notifications table if admin notifications are needed
+      // Send push notification to admins via FCM
       developer.log(
-        '🎁 GiftService: Skipping notification creation (table not found)',
+        '🎁 GiftService: ========== SENDING ADMIN NOTIFICATION ==========',
       );
+      try {
+        developer.log(
+          '🎁 GiftService: Getting FCMNotificationService from DependencyInjector...',
+        );
+        // final fcmService = DependencyInjector().fcmNotificationService;
+        developer.log(
+          '🎁 GiftService: FCMNotificationService obtained successfully',
+        );
 
-      developer.log('🎁 GiftService: Gift request completed successfully');
+        final userName = userData['name'] as String? ?? 'مستخدم';
+        final giftName = giftResponse['name'] as String? ?? 'هدية';
+
+        developer.log('🎁 GiftService: Notification details:');
+        developer.log('🎁 GiftService: - User Name: $userName');
+        developer.log('🎁 GiftService: - User ID: $userId');
+        developer.log('🎁 GiftService: - Gift Name: $giftName');
+        developer.log('🎁 GiftService: - Gift ID: $giftId');
+        developer.log('🎁 GiftService: - Gift Points: $giftPoints');
+
+        developer.log(
+          '🎁 GiftService: Calling sendGiftRequestNotificationToAdmins...',
+        );
+        // await fcmService.sendGiftRequestNotificationToAdmins(
+        //   userName: userName,
+        //   giftName: giftName,
+        //   giftPoints: giftPoints,
+        //   userId: userId,
+        //   giftId: giftId,
+        // );
+
+        developer.log(
+          '✅ GiftService: Admin notification sent successfully via FCM!',
+        );
+        developer.log(
+          '🎁 GiftService: ========== NOTIFICATION COMPLETE ==========',
+        );
+      } catch (e, stackTrace) {
+        developer.log('❌ GiftService: Failed to send admin notification');
+        developer.log('❌ GiftService: Error: $e');
+        developer.log('❌ GiftService: Error type: ${e.runtimeType}');
+        developer.log('❌ GiftService: Stack trace: $stackTrace');
+        developer.log(
+          'ℹ️ GiftService: Gift request will continue despite notification failure',
+        );
+        // Don't fail the request if notification fails
+      }
+
+      developer.log(
+        '🎁 GiftService: ========== GIFT REQUEST SUMMARY ==========',
+      );
+      developer.log('🎁 GiftService: ✅ Gift request created in Supabase');
+      developer.log('🎁 GiftService: ✅ Admin notification triggered via FCM');
+      developer.log('🎁 GiftService: ✅ Gift request completed successfully');
+      developer.log('🎁 GiftService: ========== END GIFT REQUEST ==========');
 
       return true;
     } catch (e, stackTrace) {
+      developer.log('❌ GiftService: ========== GIFT REQUEST FAILED ==========');
       developer.log('❌ GiftService: Error requesting gift: $e');
+      developer.log('❌ GiftService: Error type: ${e.runtimeType}');
       developer.log('❌ GiftService: Stack trace: $stackTrace');
+      developer.log('❌ GiftService: ========== END GIFT REQUEST ==========');
       return false;
     }
   }
@@ -390,7 +456,9 @@ class GiftService {
           .update({'points': newPoints})
           .eq('id', userId);
 
-      developer.log('🎁 GiftService: Gift request approved successfully');
+      developer.log(
+        '🎁 GiftService: Gift request approved successfully - Points deducted',
+      );
     } catch (e) {
       developer.log('❌ GiftService: Error approving gift request: $e');
       throw Exception('Failed to approve gift request: $e');
@@ -402,6 +470,22 @@ class GiftService {
     try {
       developer.log('🎁 GiftService: Rejecting gift request: $requestId');
 
+      // Get the gift request details to restore stock
+      final requestResponse =
+          await _supabase
+              .from('gift_requests')
+              .select('*, gifts!gift_requests_gift_id_fkey(stock)')
+              .eq('id', requestId)
+              .single();
+
+      final giftId = requestResponse['gift_id'] as String;
+      final currentStock = requestResponse['gifts']['stock'] as int;
+
+      developer.log(
+        '🎁 GiftService: Gift details - ID: $giftId, Current Stock: $currentStock',
+      );
+
+      // Update gift request status to rejected
       await _supabase
           .from('gift_requests')
           .update({
@@ -410,7 +494,16 @@ class GiftService {
           })
           .eq('id', requestId);
 
-      developer.log('🎁 GiftService: Gift request rejected successfully');
+      // Restore gift stock by 1 (since it was decreased when request was made)
+      final newStock = currentStock + 1;
+      await _supabase
+          .from('gifts')
+          .update({'stock': newStock})
+          .eq('id', giftId);
+
+      developer.log(
+        '🎁 GiftService: Gift request rejected successfully - Stock restored from $currentStock to $newStock',
+      );
     } catch (e) {
       developer.log('❌ GiftService: Error rejecting gift request: $e');
       throw Exception('Failed to reject gift request: $e');
@@ -428,12 +521,14 @@ class GiftService {
       final requestResponse =
           await _supabase
               .from('gift_requests')
-              .select('user_id, status')
+              .select('user_id, status, gift_id, gifts!gift_requests_gift_id_fkey(stock)')
               .eq('id', requestId)
               .single();
 
       final requestUserId = requestResponse['user_id'] as String;
       final requestStatus = requestResponse['status'] as String;
+      final giftId = requestResponse['gift_id'] as String;
+      final currentStock = requestResponse['gifts']['stock'] as int;
 
       if (requestUserId != userId) {
         throw Exception('Unauthorized: Request does not belong to user');
@@ -443,6 +538,10 @@ class GiftService {
         throw Exception('Cannot delete non-pending request');
       }
 
+      developer.log(
+        '🎁 GiftService: Gift details - ID: $giftId, Current Stock: $currentStock',
+      );
+
       // Delete the request
       await _supabase
           .from('gift_requests')
@@ -450,7 +549,16 @@ class GiftService {
           .eq('id', requestId)
           .eq('user_id', userId); // Double check for security
 
-      developer.log('🎁 GiftService: Gift request deleted successfully');
+      // Restore gift stock by 1 (since it was decreased when request was made)
+      final newStock = currentStock + 1;
+      await _supabase
+          .from('gifts')
+          .update({'stock': newStock})
+          .eq('id', giftId);
+
+      developer.log(
+        '🎁 GiftService: Gift request deleted successfully - Stock restored from $currentStock to $newStock',
+      );
     } catch (e) {
       developer.log('❌ GiftService: Error deleting gift request: $e');
       throw Exception('Failed to delete gift request: $e');

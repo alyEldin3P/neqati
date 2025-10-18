@@ -54,7 +54,10 @@ class _QrCodesScreenState extends State<QrCodesScreen> {
       _currentOffset = 0;
       _qrCodes.clear();
     });
-    context.read<QrManagementCubit>().loadQRCodes(searchQuery: query);
+    context.read<QrManagementCubit>().loadQRCodes(
+      searchQuery: query,
+      statusFilter: _filterStatus,
+    );
   }
 
   void _loadMoreQrCodes() {
@@ -68,6 +71,7 @@ class _QrCodesScreenState extends State<QrCodesScreen> {
       context.read<QrManagementCubit>().loadQRCodes(
         offset: _currentOffset,
         searchQuery: searchQuery,
+        statusFilter: _filterStatus,
       );
     }
   }

@@ -144,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     AppFormField(
                       controller: _nationalIdController,
                       label: 'رقم الهوية الوطنية',
-                      hint: '10 أرقام',
+                      hint: '14 رقم',
                       prefix: const Icon(Icons.badge),
                       keyboardType: TextInputType.number,
                       validator: AppValidators.validateNationalId,

@@ -506,11 +506,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       final giftName = gift['name'] as String? ?? 'هدية ${index + 1}';
                       final giftPoints = gift['points'] as int? ?? 0;
                       final imageUrl = gift['image_url'] as String?; // Fixed field name
+                      final stock = gift['stock'] as int? ?? 0;
+                      final isOutOfStock = stock <= 0;
                       
-                      return Container(
-                        width: 150,
-                        margin: EdgeInsets.only(right: AppDimensions.medium),
-                        child: AppContainer(
+                      return Opacity(
+                        opacity: isOutOfStock ? 0.4 : 1.0,
+                        child: Container(
+                          width: 150,
+                          margin: EdgeInsets.only(right: AppDimensions.medium),
+                          child: AppContainer(
                           padding: EdgeInsets.all(AppDimensions.small),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -577,6 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
+                        ),
                         ),
                       );
                     },

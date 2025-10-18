@@ -54,17 +54,27 @@ class QREncryptionService {
     }
   }
 
-  // Decrypt QR code data
-  static Map<String, dynamic> decryptQRData(String encryptedData) {
+  // Decrypt QR code data - handles both encrypted and legacy plain text QR codes
+  static Map<String, dynamic> decryptQRData(String qrData) {
     try {
-      print('🔓 Starting decryption process...');
-      print('🔓 Encrypted data length: ${encryptedData.length}');
+      print('🔓 Starting QR code decryption...');
+      print('🔓 Raw QR data: $qrData');
+
+      // Check if this is a legacy plain text QR code (format: QR_id:points:branch)
+      if (qrData.startsWith('QR_') && qrData.contains(':')) {
+        print('🔓 Detected legacy plain text QR code format');
+        return _parseLegacyQRCode(qrData);
+      }
+
+      // Otherwise, try to decrypt as encrypted QR code
+      print('🔓 Attempting to decrypt as encrypted QR code...');
+      print('🔓 Encrypted data length: ${qrData.length}');
       print(
-        '🔓 Encrypted data preview: ${encryptedData.length > 50 ? encryptedData.substring(0, 50) + '...' : encryptedData}',
+        '🔓 Encrypted data preview: ${qrData.length > 50 ? qrData.substring(0, 50) + '...' : qrData}',
       );
 
       // Validate input
-      if (encryptedData.isEmpty) {
+      if (qrData.isEmpty) {
         throw Exception('Empty encrypted data');
       }
 
@@ -86,7 +96,7 @@ class QREncryptionService {
 
       // Decrypt data
       print('🔓 Decrypting base64 data...');
-      final decrypted = encrypter.decrypt64(encryptedData, iv: iv);
+      final decrypted = encrypter.decrypt64(qrData, iv: iv);
       print('🔓 Decryption completed. Decrypted string: $decrypted');
 
       // Parse JSON string to Map
@@ -100,7 +110,55 @@ class QREncryptionService {
       print('❌ Error type: ${e.runtimeType}');
       print('❌ Stack trace: ${StackTrace.current}');
       debugPrint('Error decrypting QR data: $e');
-      throw Exception('Invalid QR code');
+      throw Exception('Invalid QR code format');
+    }
+  }
+
+  // Parse legacy plain text QR code format: QR_id:points:branch
+  static Map<String, dynamic> _parseLegacyQRCode(String qrData) {
+    try {
+      print('🔓 Parsing legacy QR code: $qrData');
+
+      // Remove 'QR_' prefix
+      final dataWithoutPrefix = qrData.substring(3);
+      print('🔓 Data without prefix: $dataWithoutPrefix');
+
+      // Split by colon
+      final parts = dataWithoutPrefix.split(':');
+      print('🔓 Split parts: $parts (count: ${parts.length})');
+
+      if (parts.length < 3) {
+        throw Exception(
+          'Invalid legacy QR code format - expected at least 3 parts',
+        );
+      }
+
+      final id = parts[0];
+      final points = int.parse(parts[1]);
+      final branch = parts
+          .sublist(2)
+          .join(':'); // Join remaining parts in case branch name has colons
+
+      print('🔓 Parsed legacy QR code:');
+      print('   - id: $id');
+      print('   - points: $points');
+      print('   - branch: $branch');
+
+      // Return in the same format as encrypted QR codes
+      // Use a default expiry of 30 days for legacy codes
+      final result = {
+        'id': id,
+        'points': points,
+        'branch': branch,
+        'expiryDuration': 30,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      print('🔓 Legacy QR code parsed successfully: $result');
+      return result;
+    } catch (e) {
+      print('❌ Error parsing legacy QR code: $e');
+      throw Exception('Invalid legacy QR code format');
     }
   }
 

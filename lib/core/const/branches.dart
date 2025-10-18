@@ -1,7 +1,8 @@
 // has name and id
 enum Branch {
-  riyadh('Cairo', 1),
-  jeddah('Alex', 2);
+  glc('GLC ABU RAYA', 1),
+  kapci('KAPCI ABU RAYA', 2),
+  nippon('Nippon ABU RAYA', 3);
 
   const Branch(this.name, this.id);
 

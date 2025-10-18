@@ -27,6 +27,8 @@ class AuthUnauthenticated extends AuthState {}
 
 class AuthNotVerified extends AuthState {}
 
+class AuthBlocked extends AuthState {}
+
 class AuthRegistrationSuccess extends AuthState {}
 
 class AuthPasswordResetSent extends AuthState {}

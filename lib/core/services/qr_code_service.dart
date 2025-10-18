@@ -65,6 +65,28 @@ class QRCodeService {
       return false;
     }
 
+    // 🔒 RACE CONDITION PREVENTION: Try to atomically update status to 'scanned'
+    // This prevents two devices from scanning the same QR code simultaneously
+    print('🔒 Attempting atomic status update to prevent race condition...');
+    try {
+      final updateResult = await _supabase
+          .from('qr_codes')
+          .update({'status': 'scanned'})
+          .eq('id', qrId)
+          .eq('status', 'active') // Only update if still active
+          .select();
+      
+      // If no rows were updated, another device already scanned this QR code
+      if (updateResult.isEmpty) {
+        print('❌ QR code was already scanned by another device (race condition prevented)');
+        return false;
+      }
+      print('✅ Successfully claimed QR code for scanning');
+    } catch (e) {
+      print('❌ Error during atomic status update: $e');
+      return false;
+    }
+
     // Check if QR code is expired
     print('🔍 Checking QR code expiry...');
     final creationDate = DateTime.parse(qrData['creation_date']);
@@ -120,19 +142,19 @@ class QRCodeService {
     print('🔍 Base points: $basePoints');
     print('🔍 Points earned (after multiplier): $pointsEarned');
 
-    // Update QR code status
-    print('🔍 Updating QR code status to scanned...');
+    // Update QR code with additional scan details
+    // Note: Status was already set to 'scanned' in the atomic update above
+    print('🔍 Updating QR code with scan details...');
     final userName = userData['name'] as String? ?? 'مستخدم غير معروف';
     await _supabase
         .from('qr_codes')
         .update({
-          'status': 'scanned',
           'scanned_by': userId,
           'scanned_by_name': userName,
           'scan_date': DateTime.now().toIso8601String(),
         })
         .eq('id', qrId);
-    print('✅ QR code status updated with user name: $userName');
+    print('✅ QR code scan details updated with user name: $userName');
 
     // Record scan in history
     print('🔍 Recording scan in history...');
@@ -263,27 +285,62 @@ class QRCodeService {
     int limit = 10,
     int offset = 0,
     String? searchQuery,
+    String? statusFilter,
   }) async {
     try {
-      var query = _supabase
-          .from('qr_codes')
-          .select()
-          .range(offset, offset + limit - 1)
-          .order('creation_date', ascending: false);
+      // Build query based on status filter
+      dynamic response;
+      
+      if (statusFilter == 'used') {
+        response = await _supabase
+            .from('qr_codes')
+            .select()
+            .eq('status', 'scanned')
+            .range(offset, offset + limit - 1)
+            .order('creation_date', ascending: false);
+      } else if (statusFilter == 'unused') {
+        response = await _supabase
+            .from('qr_codes')
+            .select()
+            .neq('status', 'scanned')
+            .range(offset, offset + limit - 1)
+            .order('creation_date', ascending: false);
+      } else {
+        // 'all' or null - no status filter
+        response = await _supabase
+            .from('qr_codes')
+            .select()
+            .range(offset, offset + limit - 1)
+            .order('creation_date', ascending: false);
+      }
 
       // Note: For search functionality, we'll filter on the client side for now
       // or implement server-side search with proper text search configuration
 
-      final response = await query;
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       throw Exception('Failed to get QR codes: $e');
     }
   }
 
-  Future<int> getQRCodesCount() async {
+  Future<int> getQRCodesCount({String? statusFilter}) async {
     try {
-      final response = await _supabase.from('qr_codes').select('id');
+      dynamic response;
+      
+      if (statusFilter == 'used') {
+        response = await _supabase
+            .from('qr_codes')
+            .select('id')
+            .eq('status', 'scanned');
+      } else if (statusFilter == 'unused') {
+        response = await _supabase
+            .from('qr_codes')
+            .select('id')
+            .neq('status', 'scanned');
+      } else {
+        // 'all' or null - no status filter
+        response = await _supabase.from('qr_codes').select('id');
+      }
 
       return response.length;
     } catch (e) {

@@ -15,6 +15,7 @@ class QrManagementCubit extends Cubit<QrManagementState> {
     int limit = 10,
     int offset = 0,
     String? searchQuery,
+    String? statusFilter,
   }) async {
     try {
       emit(QrManagementLoading());
@@ -23,8 +24,11 @@ class QrManagementCubit extends Cubit<QrManagementState> {
         limit: limit,
         offset: offset,
         searchQuery: searchQuery,
+        statusFilter: statusFilter,
       );
-      final totalQrCodes = await _qrService.getQRCodesCount();
+      final totalQrCodes = await _qrService.getQRCodesCount(
+        statusFilter: statusFilter,
+      );
 
       emit(QrCodesLoaded(qrCodes, totalQrCodes));
     } catch (e) {

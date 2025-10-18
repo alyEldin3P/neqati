@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:neqati/core/presentation/widgets/app_container.dart';
 import 'package:neqati/core/presentation/widgets/app_form_field.dart';
 import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/core/presentation/widgets/app_text.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
+import 'package:neqati/core/services/storage_service.dart';
+import 'package:neqati/core/services/dependency_injector.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_management_cubit.dart';
 import 'package:neqati/features/admin/gift_management/cubit/gift_management_state.dart';
 
@@ -26,7 +30,12 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _pointsController;
   late final TextEditingController _stockController;
-  late final TextEditingController _imageUrlController;
+  
+  File? _selectedImage;
+  bool _isUploadingImage = false;
+  String? _currentImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
+  final StorageService _storageService = DependencyInjector().storageService;
 
   @override
   void initState() {
@@ -35,7 +44,7 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
     _nameController = TextEditingController(text: widget.gift['name']?.toString() ?? '');
     _pointsController = TextEditingController(text: widget.gift['points']?.toString() ?? '0');
     _stockController = TextEditingController(text: widget.gift['stock']?.toString() ?? '0');
-    _imageUrlController = TextEditingController(text: widget.gift['image_url']?.toString() ?? '');
+    _currentImageUrl = widget.gift['image_url']?.toString();
   }
 
   @override
@@ -43,28 +52,77 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
     _nameController.dispose();
     _pointsController.dispose();
     _stockController.dispose();
-    _imageUrlController.dispose();
     super.dispose();
   }
 
-  void _updateGift() {
-    if (_formKey.currentState!.validate()) {
-      final name = _nameController.text.trim();
-      final points = int.tryParse(_pointsController.text.trim()) ?? 0;
-      final stock = int.tryParse(_stockController.text.trim()) ?? 0;
-      final imageUrl = _imageUrlController.text.trim();
-
-      final giftData = {
-        'name': name,
-        'points': points,
-        'stock': stock,
-        'image_url': imageUrl.isEmpty ? null : imageUrl,
-      };
-
-      context.read<GiftManagementCubit>().updateGift(
-        giftId: widget.gift['id']?.toString() ?? '',
-        giftData: giftData,
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
       );
+      
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في اختيار الصورة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _updateGift() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      try {
+        final name = _nameController.text.trim();
+        final points = int.tryParse(_pointsController.text.trim()) ?? 0;
+        final stock = int.tryParse(_stockController.text.trim()) ?? 0;
+        
+        String? imageUrl = _currentImageUrl; // Keep existing image URL
+        
+        // Upload new image if selected
+        if (_selectedImage != null) {
+          imageUrl = await _storageService.uploadImage(
+            _selectedImage!,
+            'gifts',
+          );
+        }
+
+        final giftData = {
+          'name': name,
+          'points': points,
+          'stock': stock,
+          'image_url': imageUrl,
+        };
+
+        context.read<GiftManagementCubit>().updateGift(
+          giftId: widget.gift['id']?.toString() ?? '',
+          giftData: giftData,
+        );
+      } catch (e) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في رفع الصورة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -83,6 +141,9 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
       body: BlocConsumer<GiftManagementCubit, GiftManagementState>(
         listener: (context, state) {
           if (state is GiftActionSuccess && state.action == 'update') {
+            setState(() {
+              _isUploadingImage = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -91,6 +152,9 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
             );
             Navigator.pop(context);
           } else if (state is GiftManagementError) {
+            setState(() {
+              _isUploadingImage = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -179,14 +243,8 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
                           
                           const SizedBox(height: AppDimensions.medium),
                           
-                          // Image URL Field (Optional)
-                          _buildTextField(
-                            controller: _imageUrlController,
-                            label: 'رابط الصورة (اختياري)',
-                            icon: Icons.image,
-                            keyboardType: TextInputType.url,
-                            validator: null, // Optional field
-                          ),
+                          // Image Upload Section
+                          _buildImageUploadSection(),
                         ],
                       ),
                     ),
@@ -196,7 +254,7 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
                   
                   // Update Button
                   ElevatedButton(
-                    onPressed: _updateGift,
+                    onPressed: _isUploadingImage ? null : _updateGift,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.deepTeal,
                       padding: const EdgeInsets.symmetric(
@@ -206,11 +264,31 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: AppText(
-                      'حفظ التغييرات',
-                      color: AppColors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    child: _isUploadingImage
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              AppText(
+                                'جاري تحديث الهدية...',
+                                color: AppColors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ],
+                          )
+                        : AppText(
+                            'حفظ التغييرات',
+                            color: AppColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                   ),
                 ],
               ),
@@ -218,6 +296,93 @@ class _EditGiftScreenState extends State<EditGiftScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.image, color: AppColors.deepTeal, size: 20),
+            const SizedBox(width: 8),
+            AppText(
+              'صورة الهدية (اختياري)',
+              fontWeight: FontWeight.w500,
+              color: AppColors.deepTeal,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        
+        // Image preview or placeholder
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            color: AppColors.lightTeal.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.lightTeal),
+          ),
+          child: _selectedImage != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    _selectedImage!,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : _currentImageUrl != null && _currentImageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _currentImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+                      ),
+                    )
+                  : _buildImagePlaceholder(),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Image action button
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.photo_library),
+            label: AppText(
+              _selectedImage != null ? 'تغيير الصورة' : (_currentImageUrl != null && _currentImageUrl!.isNotEmpty) ? 'تغيير الصورة' : 'اختيار صورة',
+              isSmall: true,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.deepTeal,
+              side: BorderSide(color: AppColors.deepTeal),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.add_photo_alternate,
+          size: 48,
+          color: AppColors.lightText,
+        ),
+        const SizedBox(height: 8),
+        AppText(
+          'اضغط لاختيار صورة الهدية',
+          color: AppColors.lightText,
+          isSmall: true,
+        ),
+      ],
     );
   }
 
