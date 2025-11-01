@@ -85,6 +85,25 @@ class GiftCubit extends Cubit<GiftState> {
         return;
       }
 
+      // Check gift inventory before requesting
+      developer.log('🎁 GiftCubit: Checking gift inventory...');
+      final giftData = await _giftService.getGiftById(giftId);
+      if (giftData == null) {
+        developer.log('❌ GiftCubit: Gift not found');
+        emit(const GiftRequestError('الهدية غير موجودة'));
+        return;
+      }
+
+      final stock = giftData['stock'] as int? ?? 0;
+      developer.log('🎁 GiftCubit: Gift stock: $stock');
+      
+      if (stock <= 0) {
+        developer.log('❌ GiftCubit: Gift out of stock');
+        emit(const GiftRequestError('عذراً، هذه الهدية غير متوفرة حالياً'));
+        return;
+      }
+      developer.log('✅ GiftCubit: Gift is in stock, proceeding with request');
+
       // Request the gift
       developer.log('🎁 GiftCubit: Calling gift service to request gift...');
       final result = await _giftService.requestGift(userId, giftId);

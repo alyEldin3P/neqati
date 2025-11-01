@@ -407,6 +407,7 @@ class GiftService {
   Future<void> approveGiftRequest(String requestId, String adminNotes) async {
     try {
       developer.log('🎁 GiftService: Approving gift request: $requestId');
+      developer.log('🎁 GiftService: Admin notes: $adminNotes');
 
       // Get the gift request details
       final requestResponse =
@@ -441,11 +442,12 @@ class GiftService {
       }
 
       // Start transaction-like operations
-      // 1. Update gift request status
+      // 1. Update gift request status with admin notes
       await _supabase
           .from('gift_requests')
           .update({
             'status': 'approved',
+            'admin_notes': adminNotes.isNotEmpty ? adminNotes : null,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', requestId);
@@ -457,7 +459,7 @@ class GiftService {
           .eq('id', userId);
 
       developer.log(
-        '🎁 GiftService: Gift request approved successfully - Points deducted',
+        '🎁 GiftService: Gift request approved successfully - Points deducted, Admin notes saved',
       );
     } catch (e) {
       developer.log('❌ GiftService: Error approving gift request: $e');
@@ -469,6 +471,7 @@ class GiftService {
   Future<void> rejectGiftRequest(String requestId, String adminNotes) async {
     try {
       developer.log('🎁 GiftService: Rejecting gift request: $requestId');
+      developer.log('🎁 GiftService: Admin notes: $adminNotes');
 
       // Get the gift request details to restore stock
       final requestResponse =
@@ -485,11 +488,12 @@ class GiftService {
         '🎁 GiftService: Gift details - ID: $giftId, Current Stock: $currentStock',
       );
 
-      // Update gift request status to rejected
+      // Update gift request status to rejected with admin notes
       await _supabase
           .from('gift_requests')
           .update({
             'status': 'rejected',
+            'admin_notes': adminNotes.isNotEmpty ? adminNotes : null,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', requestId);
@@ -502,7 +506,7 @@ class GiftService {
           .eq('id', giftId);
 
       developer.log(
-        '🎁 GiftService: Gift request rejected successfully - Stock restored from $currentStock to $newStock',
+        '🎁 GiftService: Gift request rejected successfully - Stock restored from $currentStock to $newStock, Admin notes saved',
       );
     } catch (e) {
       developer.log('❌ GiftService: Error rejecting gift request: $e');

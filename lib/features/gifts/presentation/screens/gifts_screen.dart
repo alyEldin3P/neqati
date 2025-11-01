@@ -110,18 +110,9 @@ class _GiftsScreenState extends State<GiftsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const UserGiftRequestsScreen(),
-                ),
-              );
-            },
-            icon: Icon(
-              Icons.history,
-              color: AppColors.white,
-            ),
-            tooltip: 'طلبات الهدايا',
+            onPressed: _loadGifts,
+            icon: Icon(Icons.refresh, color: AppColors.white),
+            tooltip: 'تحديث',
           ),
         ],
       ),
@@ -317,6 +308,36 @@ class _GiftsScreenState extends State<GiftsScreen> {
           ),
         ),
 
+        // My Gift Requests Button
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppDimensions.medium,
+            vertical: AppDimensions.small,
+          ),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const UserGiftRequestsScreen(),
+                ),
+              );
+            },
+            icon: Icon(Icons.receipt_long, color: AppColors.white),
+            label: AppText(
+              'طلباتي من الهدايا',
+              color: AppColors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.lightTeal,
+              minimumSize: Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimensions.small),
+              ),
+            ),
+          ),
+        ),
+
         // Gifts grid
         Expanded(
           child: RefreshIndicator(
@@ -333,129 +354,140 @@ class _GiftsScreenState extends State<GiftsScreen> {
               itemCount: state.gifts.length,
               itemBuilder: (context, index) {
                 final gift = state.gifts[index];
-                developer.log('🎁 GiftsScreen: Building gift card $index: $gift');
-                
+                developer.log(
+                  '🎁 GiftsScreen: Building gift card $index: $gift',
+                );
+
                 final giftName = gift['name'] as String? ?? 'هدية ${index + 1}';
                 final giftPoints = gift['points'] as int? ?? 0;
-                final imageUrl = gift['image_url'] as String?; // Fixed field name
+                final imageUrl =
+                    gift['image_url'] as String?; // Fixed field name
                 final stock = gift['stock'] as int? ?? 0;
                 final isOutOfStock = stock <= 0;
                 final canAfford = state.userPoints >= giftPoints;
-                
-                developer.log('🎁 GiftsScreen: Gift $index - Name: $giftName, Points: $giftPoints, Stock: $stock, ImageURL: $imageUrl, CanAfford: $canAfford');
+
+                developer.log(
+                  '🎁 GiftsScreen: Gift $index - Name: $giftName, Points: $giftPoints, Stock: $stock, ImageURL: $imageUrl, CanAfford: $canAfford',
+                );
 
                 return Opacity(
                   opacity: isOutOfStock ? 0.4 : 1.0,
                   child: AppContainer(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Gift image
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.lightTeal,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(AppDimensions.small),
-                              topRight: Radius.circular(AppDimensions.small),
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Gift image
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.lightTeal,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(AppDimensions.small),
+                                topRight: Radius.circular(AppDimensions.small),
+                              ),
                             ),
+                            child:
+                                imageUrl != null
+                                    ? ClipRRect(
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(
+                                          AppDimensions.small,
+                                        ),
+                                        topRight: Radius.circular(
+                                          AppDimensions.small,
+                                        ),
+                                      ),
+                                      child: Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Icon(
+                                                  Icons.card_giftcard,
+                                                  color: AppColors.deepTeal,
+                                                  size: 48,
+                                                ),
+                                      ),
+                                    )
+                                    : Icon(
+                                      Icons.card_giftcard,
+                                      color: AppColors.deepTeal,
+                                      size: 48,
+                                    ),
                           ),
-                          child:
-                              imageUrl != null
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(
-                                        AppDimensions.small,
-                                      ),
-                                      topRight: Radius.circular(
-                                        AppDimensions.small,
-                                      ),
-                                    ),
-                                    child: Image.network(
-                                      imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) => Icon(
-                                            Icons.card_giftcard,
-                                            color: AppColors.deepTeal,
-                                            size: 48,
-                                          ),
-                                    ),
-                                  )
-                                  : Icon(
-                                    Icons.card_giftcard,
-                                    color: AppColors.deepTeal,
-                                    size: 48,
-                                  ),
                         ),
-                      ),
 
-                      // Gift details
-                      Expanded(
-                        flex: 3,
-                        child: Padding(
-                          padding: EdgeInsets.all(AppDimensions.small),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AppText(
-                                giftName,
-                                fontWeight: FontWeight.bold,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: AppDimensions.tiny),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.star,
-                                    color: AppColors.goldAccent,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Flexible(
-                                    child: AppText(
-                                      '$giftPoints نقطة',
-                                      isSmall: true,
-                                      color:
-                                          canAfford
-                                              ? AppColors.deepTeal
-                                              : AppColors.alertRed,
+                        // Gift details
+                        Expanded(
+                          flex: 3,
+                          child: Padding(
+                            padding: EdgeInsets.all(AppDimensions.small),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AppText(
+                                  giftName,
+                                  fontWeight: FontWeight.bold,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: AppDimensions.tiny),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.star,
+                                      color: AppColors.goldAccent,
+                                      size: 16,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: AppDimensions.tiny),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed:
-                                      (canAfford && !isOutOfStock)
-                                          ? () => _requestGift(gift)
-                                          : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.deepTeal,
-                                    disabledBackgroundColor: AppColors.lightText
-                                        .withValues(alpha: 0.3),
-                                    padding: EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  child: AppText(
-                                    isOutOfStock ? 'نفذت الكمية' : 'طلب الهدية',
-                                    color: AppColors.white,
-                                    isSmall: true,
+                                    SizedBox(width: 4),
+                                    Flexible(
+                                      child: AppText(
+                                        '$giftPoints نقطة',
+                                        isSmall: true,
+                                        color:
+                                            canAfford
+                                                ? AppColors.deepTeal
+                                                : AppColors.alertRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: AppDimensions.tiny),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        (canAfford && !isOutOfStock)
+                                            ? () => _requestGift(gift)
+                                            : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.deepTeal,
+                                      disabledBackgroundColor: AppColors
+                                          .lightText
+                                          .withValues(alpha: 0.3),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    child: AppText(
+                                      isOutOfStock
+                                          ? 'نفذت الكمية'
+                                          : 'طلب الهدية',
+                                      color: AppColors.white,
+                                      isSmall: true,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 );
               },
             ),

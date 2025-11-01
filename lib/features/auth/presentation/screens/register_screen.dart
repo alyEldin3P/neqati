@@ -27,7 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
 
   String _selectedPosition = 'مقاول';
-  final _positions = ['مقاول', 'مهندس', 'فني'];
+  final _positions = ['مقاول', 'مهندس', 'فني', 'استورجي', 'نقاش'];
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -161,7 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: AppValidators.validatePhoneNumber,
                     ),
                     SizedBox(height: AppDimensions.medium),
-                    
+
                     // Email Field
                     AppFormField(
                       controller: _emailController,

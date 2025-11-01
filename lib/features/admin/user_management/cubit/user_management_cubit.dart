@@ -187,4 +187,24 @@ class UserManagementCubit extends Cubit<UserManagementState> {
       emit(UserManagementError('Failed to create user: ${e.toString()}'));
     }
   }
+
+  Future<void> updateUserLevel(String userId, String levelName) async {
+    try {
+      emit(UserManagementLoading());
+
+      await _userService.updateUserLevel(userId, levelName);
+
+      emit(
+        UserActionSuccess(
+          message: 'تم تحديث مستوى المستخدم بنجاح',
+          userId: userId,
+          action: 'update_level',
+        ),
+      );
+    } catch (e) {
+      emit(
+        UserManagementError('Failed to update user level: ${e.toString()}'),
+      );
+    }
+  }
 }

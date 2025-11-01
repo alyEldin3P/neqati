@@ -5,6 +5,7 @@ import 'package:neqati/core/presentation/widgets/app_loading.dart';
 import 'package:neqati/core/presentation/widgets/app_text.dart';
 import 'package:neqati/core/services/scan_service.dart';
 import 'package:neqati/core/services/user_service.dart';
+import 'package:neqati/core/services/level_service.dart';
 import 'package:neqati/core/utils/app_colors.dart';
 import 'package:neqati/core/utils/app_dimensions.dart';
 import 'package:neqati/features/admin/user_management/cubit/user_management_cubit.dart';
@@ -30,13 +31,17 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   final TextEditingController _pointsController = TextEditingController();
   late UserService _userService;
   late ScanService _scanService;
+  late LevelService _levelService;
+  List<Map<String, dynamic>> _levels = [];
 
   @override
   void initState() {
     super.initState();
     _userService = UserService();
     _scanService = ScanService();
+    _levelService = LevelService();
     _loadUserData();
+    _loadLevels();
   }
 
   @override
@@ -72,7 +77,9 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
       // Load gift requests using the cubit
       if (mounted) {
-        context.read<GiftRequestManagementCubit>().loadUserGiftRequests(widget.userId);
+        context.read<GiftRequestManagementCubit>().loadUserGiftRequests(
+          widget.userId,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -85,6 +92,25 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _loadLevels() async {
+    try {
+      final levels = await _levelService.getLevels();
+      if (mounted) {
+        setState(() {
+          _levels = levels;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ في تحميل المستويات: ${e.toString()}'),
+          ),
+        );
       }
     }
   }
@@ -296,12 +322,26 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(
-              _user!.isAdmin ? Icons.remove_moderator : Icons.admin_panel_settings,
+              _user!.isAdmin
+                  ? Icons.remove_moderator
+                  : Icons.admin_panel_settings,
               color: _user!.isAdmin ? Colors.orange : Colors.purple,
             ),
-            title: AppText(_user!.isAdmin ? 'إلغاء صلاحيات المدير' : 'ترقية إلى مدير'),
+            title: AppText(
+              _user!.isAdmin ? 'إلغاء صلاحيات المدير' : 'ترقية إلى مدير',
+            ),
             onTap: () {
               _showToggleAdminDialog();
+            },
+          ),
+
+          // Update level
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.stars, color: Colors.amber),
+            title: AppText('تغيير المستوى'),
+            onTap: () {
+              _showUpdateLevelDialog();
             },
           ),
         ],
@@ -389,15 +429,17 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           BlocConsumer<GiftRequestManagementCubit, GiftRequestManagementState>(
             listener: (context, state) {
               if (state is GiftRequestActionSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
                 // Reload user gift requests after action
-                context.read<GiftRequestManagementCubit>().loadUserGiftRequests(widget.userId);
-              } else if (state is UserGiftRequestsError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
+                context.read<GiftRequestManagementCubit>().loadUserGiftRequests(
+                  widget.userId,
                 );
+              } else if (state is UserGiftRequestsError) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
               }
             },
             builder: (context, state) {
@@ -420,7 +462,9 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                         const SizedBox(height: AppDimensions.small),
                         ElevatedButton(
                           onPressed: () {
-                            context.read<GiftRequestManagementCubit>().loadUserGiftRequests(widget.userId);
+                            context
+                                .read<GiftRequestManagementCubit>()
+                                .loadUserGiftRequests(widget.userId);
                           },
                           child: AppText('إعادة المحاولة'),
                         ),
@@ -432,7 +476,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
               if (state is UserGiftRequestsLoaded) {
                 final giftRequests = state.giftRequests;
-                
+
                 if (giftRequests.isEmpty) {
                   return Center(
                     child: Padding(
@@ -450,7 +494,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       itemCount: giftRequests.take(5).length, // Show first 5
                       itemBuilder: (context, index) {
                         final request = giftRequests[index];
-                        
+
                         Color statusColor;
                         switch (request.status) {
                           case 'pending':
@@ -467,13 +511,20 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                         }
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: AppDimensions.small),
+                          margin: const EdgeInsets.only(
+                            bottom: AppDimensions.small,
+                          ),
                           child: ListTile(
                             leading: const CircleAvatar(
                               backgroundColor: AppColors.deepTeal,
-                              child: Icon(Icons.card_giftcard, color: Colors.white),
+                              child: Icon(
+                                Icons.card_giftcard,
+                                color: Colors.white,
+                              ),
                             ),
-                            title: AppText(request.giftName ?? 'هدية غير معروفة'),
+                            title: AppText(
+                              request.giftName ?? 'هدية غير معروفة',
+                            ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -505,31 +556,32 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                 ),
                               ],
                             ),
-                            trailing: request.isPending
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.check,
-                                          color: Colors.green,
+                            trailing:
+                                request.isPending
+                                    ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.check,
+                                            color: Colors.green,
+                                          ),
+                                          onPressed: () {
+                                            _showApproveDialog(request);
+                                          },
                                         ),
-                                        onPressed: () {
-                                          _showApproveDialog(request);
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.close,
-                                          color: Colors.red,
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () {
+                                            _showRejectDialog(request);
+                                          },
                                         ),
-                                        onPressed: () {
-                                          _showRejectDialog(request);
-                                        },
-                                      ),
-                                    ],
-                                  )
-                                : null,
+                                      ],
+                                    )
+                                    : null,
                           ),
                         );
                       },
@@ -548,7 +600,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                               color: AppColors.deepTeal,
                               fontWeight: FontWeight.bold,
                             ),
-                            const Icon(Icons.arrow_forward, color: AppColors.deepTeal),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: AppColors.deepTeal,
+                            ),
                           ],
                         ),
                       ),
@@ -568,7 +623,6 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       ),
     );
   }
-
 
   void _showBlockUserDialog() {
     final isBlocked = _user!.isBlocked;
@@ -800,221 +854,386 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
   void _showApproveDialog(GiftRequest request) {
     final TextEditingController notesController = TextEditingController();
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('قبول طلب الهدية'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppText('هل أنت متأكد من قبول طلب الهدية؟'),
-            const SizedBox(height: AppDimensions.small),
-            AppText('الهدية: ${request.giftName}', fontWeight: FontWeight.bold),
-            AppText('النقاط المطلوبة: ${request.giftPoints}', fontWeight: FontWeight.bold),
-            AppText('المستخدم: ${request.userName}', fontWeight: FontWeight.bold),
-            const SizedBox(height: AppDimensions.medium),
-            TextField(
-              controller: notesController,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات إضافية (اختياري)',
-                hintText: 'أدخل أي ملاحظات للمستخدم',
-              ),
-              maxLines: 3,
+      builder:
+          (context) => AlertDialog(
+            title: AppText('قبول طلب الهدية', fontWeight: FontWeight.bold),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText('هل أنت متأكد من قبول طلب الهدية؟'),
+                const SizedBox(height: AppDimensions.small),
+                AppText(
+                  'الهدية: ${request.giftName}',
+                  fontWeight: FontWeight.bold,
+                ),
+                AppText(
+                  'النقاط المطلوبة: ${request.giftPoints}',
+                  fontWeight: FontWeight.bold,
+                ),
+                AppText(
+                  'المستخدم: ${request.userName}',
+                  fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: AppDimensions.medium),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'رسالة للمستخدم (اختياري)',
+                    hintText: 'أضف رسالة للمستخدم عن قبول الطلب',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<GiftRequestManagementCubit>().approveGiftRequest(
+                    request.id,
+                    adminNotes: notesController.text.trim(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: AppText('قبول', color: AppColors.white),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<GiftRequestManagementCubit>().approveGiftRequest(
-                request.id,
-                adminNotes: notesController.text.trim(),
-              );
-            },
-            child: AppText('قبول', color: Colors.green),
-          ),
-        ],
-      ),
     );
   }
 
   void _showRejectDialog(GiftRequest request) {
     final TextEditingController notesController = TextEditingController();
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('رفض طلب الهدية'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppText('هل أنت متأكد من رفض طلب الهدية؟'),
-            const SizedBox(height: AppDimensions.small),
-            AppText('الهدية: ${request.giftName}', fontWeight: FontWeight.bold),
-            AppText('النقاط المطلوبة: ${request.giftPoints}', fontWeight: FontWeight.bold),
-            AppText('المستخدم: ${request.userName}', fontWeight: FontWeight.bold),
-            const SizedBox(height: AppDimensions.medium),
-            TextField(
-              controller: notesController,
-              decoration: const InputDecoration(
-                labelText: 'سبب الرفض (اختياري)',
-                hintText: 'أدخل سبب رفض الطلب',
-              ),
-              maxLines: 3,
+      builder:
+          (context) => AlertDialog(
+            title: AppText('رفض طلب الهدية', fontWeight: FontWeight.bold),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText('هل أنت متأكد من رفض طلب الهدية؟'),
+                const SizedBox(height: AppDimensions.small),
+                AppText(
+                  'الهدية: ${request.giftName}',
+                  fontWeight: FontWeight.bold,
+                ),
+                AppText(
+                  'النقاط المطلوبة: ${request.giftPoints}',
+                  fontWeight: FontWeight.bold,
+                ),
+                AppText(
+                  'المستخدم: ${request.userName}',
+                  fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: AppDimensions.medium),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'رسالة للمستخدم (اختياري)',
+                    hintText: 'أضف رسالة للمستخدم عن سبب الرفض',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<GiftRequestManagementCubit>().rejectGiftRequest(
+                    request.id,
+                    adminNotes: notesController.text.trim(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: AppText('رفض', color: AppColors.white),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<GiftRequestManagementCubit>().rejectGiftRequest(
-                request.id,
-                adminNotes: notesController.text.trim(),
-              );
-            },
-            child: AppText('رفض', color: Colors.red),
-          ),
-        ],
-      ),
     );
   }
 
   void _showAllGiftRequestsDialog(List<GiftRequest> giftRequests) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(AppDimensions.medium),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder:
+          (context) => Dialog(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: const EdgeInsets.all(AppDimensions.medium),
+              child: Column(
                 children: [
-                  AppText.title('جميع طلبات الهدايا'),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      AppText.title('جميع طلبات الهدايا'),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: giftRequests.length,
+                      itemBuilder: (context, index) {
+                        final request = giftRequests[index];
+
+                        Color statusColor;
+                        switch (request.status) {
+                          case 'pending':
+                            statusColor = Colors.orange;
+                            break;
+                          case 'approved':
+                            statusColor = Colors.green;
+                            break;
+                          case 'rejected':
+                            statusColor = Colors.red;
+                            break;
+                          default:
+                            statusColor = Colors.grey;
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(
+                            bottom: AppDimensions.small,
+                          ),
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: AppColors.deepTeal,
+                              child: Icon(
+                                Icons.card_giftcard,
+                                color: Colors.white,
+                              ),
+                            ),
+                            title: AppText(
+                              request.giftName ?? 'هدية غير معروفة',
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AppText(
+                                  'النقاط: ${request.giftPoints ?? 0}',
+                                  isSmall: true,
+                                  color: AppColors.lightText,
+                                ),
+                                AppText(
+                                  '${request.requestDate.day}/${request.requestDate.month}/${request.requestDate.year}',
+                                  isSmall: true,
+                                  color: AppColors.lightText,
+                                ),
+                                if (request.adminNotes != null &&
+                                    request.adminNotes!.isNotEmpty)
+                                  AppText(
+                                    'ملاحظات: ${request.adminNotes}',
+                                    isSmall: true,
+                                    color: AppColors.lightText,
+                                  ),
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: AppText(
+                                    request.statusDisplayName,
+                                    color: Colors.white,
+                                    isSmall: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            trailing:
+                                request.isPending
+                                    ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.check,
+                                            color: Colors.green,
+                                          ),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            _showApproveDialog(request);
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            _showRejectDialog(request);
+                                          },
+                                        ),
+                                      ],
+                                    )
+                                    : null,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
-              const Divider(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: giftRequests.length,
-                  itemBuilder: (context, index) {
-                    final request = giftRequests[index];
-                    
-                    Color statusColor;
-                    switch (request.status) {
-                      case 'pending':
-                        statusColor = Colors.orange;
-                        break;
-                      case 'approved':
-                        statusColor = Colors.green;
-                        break;
-                      case 'rejected':
-                        statusColor = Colors.red;
-                        break;
-                      default:
-                        statusColor = Colors.grey;
-                    }
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: AppDimensions.small),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: AppColors.deepTeal,
-                          child: Icon(Icons.card_giftcard, color: Colors.white),
-                        ),
-                        title: AppText(request.giftName ?? 'هدية غير معروفة'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText(
-                              'النقاط: ${request.giftPoints ?? 0}',
-                              isSmall: true,
-                              color: AppColors.lightText,
-                            ),
-                            AppText(
-                              '${request.requestDate.day}/${request.requestDate.month}/${request.requestDate.year}',
-                              isSmall: true,
-                              color: AppColors.lightText,
-                            ),
-                            if (request.adminNotes != null && request.adminNotes!.isNotEmpty)
-                              AppText(
-                                'ملاحظات: ${request.adminNotes}',
-                                isSmall: true,
-                                color: AppColors.lightText,
-                              ),
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: AppText(
-                                request.statusDisplayName,
-                                color: Colors.white,
-                                isSmall: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: request.isPending
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.check,
-                                      color: Colors.green,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      _showApproveDialog(request);
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.close,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      _showRejectDialog(request);
-                                    },
-                                  ),
-                                ],
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+    );
+  }
+
+  void _showUpdateLevelDialog() {
+    if (_levels.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد مستويات متاحة')));
+      return;
+    }
+
+    String? selectedLevel = _user!.level;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: AppText('تغيير المستوى'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText('المستوى الحالي: ${_user!.level}'),
+                      const SizedBox(height: AppDimensions.medium),
+                      AppText(
+                        'اختر المستوى الجديد:',
+                        fontWeight: FontWeight.bold,
+                      ),
+                      const SizedBox(height: AppDimensions.small),
+                      DropdownButtonFormField<String>(
+                        value: selectedLevel,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: AppDimensions.small,
+                            vertical: AppDimensions.small,
+                          ),
+                        ),
+                        isExpanded: true,
+                        menuMaxHeight: 300,
+                        items:
+                            _levels.map((level) {
+                              return DropdownMenuItem<String>(
+                                value: level['name'] as String,
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.stars,
+                                      color: Colors.amber,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: AppDimensions.small),
+                                    AppText(
+                                      level['name'] as String,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedLevel = value;
+                          });
+                        },
+                      ),
+                      if (selectedLevel != null)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppDimensions.small,
+                          ),
+                          child: AppText(
+                            'متطلبات المستوى: من ${_levels.firstWhere((l) => l['name'] == selectedLevel)['starting_points']} نقطة',
+                            isSmall: true,
+                            color: AppColors.lightText,
+                          ),
+                        ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: AppText('إلغاء'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        if (selectedLevel != null &&
+                            selectedLevel != _user!.level) {
+                          Navigator.pop(context);
+                          try {
+                            await context
+                                .read<UserManagementCubit>()
+                                .updateUserLevel(_user!.id, selectedLevel!);
+                            await _loadUserData();
+                            if (mounted) {
+                              // Use post-frame callback to show snackbar after dialog is closed
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('تم تحديث المستوى بنجاح'),
+                                    ),
+                                  );
+                                }
+                              });
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              // Use post-frame callback to show snackbar after dialog is closed
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('حدث خطأ: ${e.toString()}'),
+                                    ),
+                                  );
+                                }
+                              });
+                            }
+                          }
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: AppText('تأكيد', color: AppColors.deepTeal),
+                    ),
+                  ],
+                ),
+          ),
     );
   }
 }

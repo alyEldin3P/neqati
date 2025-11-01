@@ -48,6 +48,7 @@ class GiftRequest {
           data['updated_at'] != null
               ? DateTime.parse(data['updated_at'])
               : null,
+      adminNotes: data['admin_notes'] as String?,
       userName: userData?['name'] as String?,
       userPhone: userData?['phone_number'] as String?,
       userEmail: userData?['email'] as String?,

@@ -111,8 +111,46 @@ class _UserGiftRequestsScreenState extends State<UserGiftRequestsScreen> {
               _buildDetailRow('تاريخ الطلب:', _formatDate(giftRequest.requestDate)),
               if (giftRequest.updatedAt != null)
                 _buildDetailRow('تاريخ التحديث:', _formatDate(giftRequest.updatedAt!)),
-              if (giftRequest.adminNotes != null && giftRequest.adminNotes!.isNotEmpty)
-                _buildDetailRow('ملاحظات الإدارة:', giftRequest.adminNotes!),
+              
+              // Admin message section
+              if (giftRequest.adminNotes != null && giftRequest.adminNotes!.isNotEmpty) ...[
+                SizedBox(height: AppDimensions.medium),
+                Container(
+                  padding: EdgeInsets.all(AppDimensions.small),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(giftRequest.status).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppDimensions.small),
+                    border: Border.all(
+                      color: _getStatusColor(giftRequest.status).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.message,
+                            color: _getStatusColor(giftRequest.status),
+                            size: 20,
+                          ),
+                          SizedBox(width: AppDimensions.small),
+                          AppText(
+                            'رسالة من الإدارة',
+                            fontWeight: FontWeight.bold,
+                            color: _getStatusColor(giftRequest.status),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: AppDimensions.small),
+                      AppText(
+                        giftRequest.adminNotes!,
+                        color: AppColors.darkText,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -393,6 +431,51 @@ class _UserGiftRequestsScreenState extends State<UserGiftRequestsScreen> {
                     ),
                   ],
                 ),
+
+                // Admin message if available
+                if (giftRequest.adminNotes != null && giftRequest.adminNotes!.isNotEmpty) ...[
+                  SizedBox(height: AppDimensions.small),
+                  Container(
+                    padding: EdgeInsets.all(AppDimensions.small),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(giftRequest.status).withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(AppDimensions.small),
+                      border: Border.all(
+                        color: _getStatusColor(giftRequest.status).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.message,
+                          color: _getStatusColor(giftRequest.status),
+                          size: 16,
+                        ),
+                        SizedBox(width: AppDimensions.small),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                'رسالة من الإدارة:',
+                                isSmall: true,
+                                fontWeight: FontWeight.bold,
+                                color: _getStatusColor(giftRequest.status),
+                              ),
+                              SizedBox(height: 4),
+                              AppText(
+                                giftRequest.adminNotes!,
+                                isSmall: true,
+                                color: AppColors.darkText,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 SizedBox(height: AppDimensions.medium),
 

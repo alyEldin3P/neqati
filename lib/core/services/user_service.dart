@@ -301,6 +301,23 @@ class UserService {
     }
   }
 
+  // Update user level (admin action)
+  Future<void> updateUserLevel(String userId, String levelName) async {
+    try {
+      log('UserService: Updating user $userId level to: $levelName');
+      
+      await _supabase
+          .from('users')
+          .update({'level': levelName})
+          .eq('id', userId);
+      
+      log('UserService: Successfully updated user level to: $levelName');
+    } catch (e) {
+      log('UserService: Error updating user level: $e');
+      throw Exception('Failed to update user level: $e');
+    }
+  }
+
   // Bulk reset all users to a specific level
   Future<int> resetAllUsersToLevel(String levelName) async {
     try {

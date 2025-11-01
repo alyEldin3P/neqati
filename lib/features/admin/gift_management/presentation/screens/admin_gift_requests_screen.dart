@@ -51,7 +51,7 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: AppText('قبول طلب الهدية'),
+            title: AppText('قبول طلب الهدية', fontWeight: FontWeight.bold),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,6 +70,16 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                   'المستخدم: ${request.userName}',
                   fontWeight: FontWeight.bold,
                 ),
+                const SizedBox(height: AppDimensions.medium),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'رسالة للمستخدم (اختياري)',
+                    hintText: 'أضف رسالة للمستخدم عن قبول الطلب',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
               ],
             ),
             actions: [
@@ -77,7 +87,7 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                 onPressed: () => Navigator.pop(context),
                 child: AppText('إلغاء'),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
                   context.read<GiftRequestManagementCubit>().approveGiftRequest(
@@ -85,7 +95,10 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                     adminNotes: notesController.text.trim(),
                   );
                 },
-                child: AppText('قبول', color: Colors.green),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
+                child: AppText('قبول', color: AppColors.white),
               ),
             ],
           ),
@@ -99,7 +112,7 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: AppText('رفض طلب الهدية'),
+            title: AppText('رفض طلب الهدية', fontWeight: FontWeight.bold),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,8 +135,9 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                 TextField(
                   controller: notesController,
                   decoration: const InputDecoration(
-                    labelText: 'سبب الرفض (اختياري)',
-                    hintText: 'أدخل سبب رفض الطلب',
+                    labelText: 'رسالة للمستخدم (اختياري)',
+                    hintText: 'أضف رسالة للمستخدم عن سبب الرفض',
+                    border: OutlineInputBorder(),
                   ),
                   maxLines: 3,
                 ),
@@ -134,7 +148,7 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                 onPressed: () => Navigator.pop(context),
                 child: AppText('إلغاء'),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
                   context.read<GiftRequestManagementCubit>().rejectGiftRequest(
@@ -142,7 +156,10 @@ class _AdminGiftRequestsScreenState extends State<AdminGiftRequestsScreen> {
                     adminNotes: notesController.text.trim(),
                   );
                 },
-                child: AppText('رفض', color: Colors.red),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: AppText('رفض', color: AppColors.white),
               ),
             ],
           ),

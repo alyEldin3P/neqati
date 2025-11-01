@@ -137,7 +137,7 @@ class _AdminLevelsScreenState extends State<AdminLevelsScreen> {
     // Get all levels for dropdown
     final cubit = context.read<LevelManagementCubit>();
     final state = cubit.state;
-    
+
     if (state is! LevelsLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى تحميل المستويات أولاً')),
@@ -146,71 +146,77 @@ class _AdminLevelsScreenState extends State<AdminLevelsScreen> {
     }
 
     String? selectedLevel;
-    
+
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text(
-            'إعادة تعيين جميع المستخدمين',
-            textAlign: TextAlign.center,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'هل أنت متأكد من إعادة تعيين جميع المستخدمين إلى مستوى محدد؟',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'سيتم تغيير مستوى جميع المستخدمين (باستثناء المسؤولين) إلى المستوى المحدد.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.red),
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'اختر المستوى',
-                  border: OutlineInputBorder(),
+      builder:
+          (dialogContext) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text(
+                    'إعادة تعيين جميع المستخدمين',
+                    textAlign: TextAlign.center,
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'هل أنت متأكد من إعادة تعيين جميع المستخدمين إلى مستوى محدد؟',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'سيتم تغيير مستوى جميع المستخدمين (باستثناء المسؤولين) إلى المستوى المحدد.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.red),
+                      ),
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'اختر المستوى',
+                          border: OutlineInputBorder(),
+                        ),
+                        value: selectedLevel,
+                        items:
+                            state.levels.map((level) {
+                              final levelName = level['name'] as String;
+                              return DropdownMenuItem(
+                                value: levelName,
+                                child: Text(levelName),
+                              );
+                            }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedLevel = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('إلغاء'),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          selectedLevel == null
+                              ? null
+                              : () async {
+                                Navigator.pop(dialogContext);
+                                await cubit.resetAllUsersToLevel(
+                                  selectedLevel!,
+                                );
+                              },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text('تأكيد إعادة التعيين'),
+                    ),
+                  ],
                 ),
-                value: selectedLevel,
-                items: state.levels.map((level) {
-                  final levelName = level['name'] as String;
-                  return DropdownMenuItem(
-                    value: levelName,
-                    child: Text(levelName),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedLevel = value;
-                  });
-                },
-              ),
-            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: selectedLevel == null
-                  ? null
-                  : () async {
-                      Navigator.pop(dialogContext);
-                      await cubit.resetAllUsersToLevel(selectedLevel!);
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              child: const Text('تأكيد إعادة التعيين'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

@@ -51,8 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _position = userData['position'] as String? ?? 'مقاول';
       _level = userData['level'] as String? ?? 'مبتدئ';
       _points = userData['points'] as int? ?? 0;
-      _phoneNumber = userData['phoneNumber'] as String? ?? '';
-      _nationalId = userData['nationalId'] as String? ?? '';
+      _phoneNumber = userData['phone_number'] as String? ?? '';
+      _nationalId = userData['national_id'] as String? ?? '';
     } else {
       _nameController = TextEditingController();
       _addressController = TextEditingController();
