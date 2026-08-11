@@ -12,13 +12,18 @@ class UserManagementCubit extends Cubit<UserManagementState> {
       super(UserManagementInitial());
 
   // User Management
-  Future<void> loadUsers({int limit = 20, int offset = 0}) async {
+  Future<void> loadUsers({
+    int limit = 20,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
     try {
       emit(UserManagementLoading());
 
       final usersData = await _userService.getUsersPaginated(
         limit: limit,
         offset: offset,
+        searchQuery: searchQuery,
       );
 
       final users =
@@ -103,7 +108,9 @@ class UserManagementCubit extends Cubit<UserManagementState> {
       await _userService.toggleAdminStatus(userId, isAdmin);
 
       final message =
-          isAdmin ? 'تمت الترقية إلى مدير بنجاح' : 'تم إلغاء صلاحيات المدير بنجاح';
+          isAdmin
+              ? 'تمت الترقية إلى مدير بنجاح'
+              : 'تم إلغاء صلاحيات المدير بنجاح';
 
       emit(
         UserActionSuccess(
@@ -202,9 +209,7 @@ class UserManagementCubit extends Cubit<UserManagementState> {
         ),
       );
     } catch (e) {
-      emit(
-        UserManagementError('Failed to update user level: ${e.toString()}'),
-      );
+      emit(UserManagementError('Failed to update user level: ${e.toString()}'));
     }
   }
 }

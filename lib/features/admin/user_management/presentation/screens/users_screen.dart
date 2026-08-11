@@ -43,7 +43,8 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
         !_isLoading &&
         _hasMore) {
       _loadMoreUsers();
@@ -55,7 +56,7 @@ class _UsersScreenState extends State<UsersScreen> {
       _currentOffset = 0;
       _users.clear();
     });
-    context.read<UserManagementCubit>().loadUsers();
+    context.read<UserManagementCubit>().loadUsers(searchQuery: _searchQuery);
   }
 
   void _loadMoreUsers() {
@@ -64,18 +65,20 @@ class _UsersScreenState extends State<UsersScreen> {
         _isLoading = true;
         _currentOffset += 20;
       });
-      context.read<UserManagementCubit>().loadUsers(offset: _currentOffset);
+      context.read<UserManagementCubit>().loadUsers(
+        offset: _currentOffset,
+        searchQuery: _searchQuery,
+      );
     }
   }
 
   void _filterUsers() {
-    if (_searchQuery.isEmpty) {
-      _loadUsers();
-    } else {
-      // In a real app, you would implement server-side filtering
-      // For now, we'll just reload all users and filter client-side
-      _loadUsers();
-    }
+    // Reset pagination and reload with search query
+    setState(() {
+      _currentOffset = 0;
+      _users.clear();
+    });
+    context.read<UserManagementCubit>().loadUsers(searchQuery: _searchQuery);
   }
 
   @override
@@ -128,7 +131,7 @@ class _UsersScreenState extends State<UsersScreen> {
               },
             ),
           ),
-          
+
           // Users list
           Expanded(
             child: BlocConsumer<UserManagementCubit, UserManagementState>(
@@ -144,16 +147,16 @@ class _UsersScreenState extends State<UsersScreen> {
                     _isLoading = false;
                   });
                 } else if (state is UserManagementError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(state.message)));
                   setState(() {
                     _isLoading = false;
                   });
                 } else if (state is UserActionSuccess) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(state.message)));
                   _loadUsers();
                 }
               },
@@ -174,34 +177,27 @@ class _UsersScreenState extends State<UsersScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.deepTeal,
                           ),
-                          child: AppText('إعادة المحاولة', color: AppColors.white),
+                          child: AppText(
+                            'إعادة المحاولة',
+                            color: AppColors.white,
+                          ),
                         ),
                       ],
                     ),
                   );
                 }
 
-                // Filter users based on search query
-                final filteredUsers = _searchQuery.isEmpty
-                    ? _users
-                    : _users.where((user) {
-                        final name = user.name?.toLowerCase() ?? '';
-                        final email = user.email?.toLowerCase() ?? '';
-                        final phone = user.phoneNumber?.toLowerCase() ?? '';
-                        final query = _searchQuery.toLowerCase();
-                        return name.contains(query) || email.contains(query) || phone.contains(query);
-                      }).toList();
-
+                // No need for client-side filtering anymore - it's done server-side
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(AppDimensions.medium),
-                  itemCount: filteredUsers.length + (_isLoading ? 1 : 0),
+                  itemCount: _users.length + (_isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index == filteredUsers.length) {
+                    if (index == _users.length) {
                       return const Center(child: AppLoading());
                     }
 
-                    final user = filteredUsers[index];
+                    final user = _users[index];
                     return _buildUserCard(context, user);
                   },
                 );
@@ -221,10 +217,11 @@ class _UsersScreenState extends State<UsersScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BlocProvider.value(
-                value: context.read<GiftRequestManagementCubit>(),
-                child: UserDetailsScreen(userId: user.id),
-              ),
+              builder:
+                  (context) => BlocProvider.value(
+                    value: context.read<GiftRequestManagementCubit>(),
+                    child: UserDetailsScreen(userId: user.id),
+                  ),
             ),
           ).then((_) => _loadUsers());
         },
@@ -300,15 +297,9 @@ class _UsersScreenState extends State<UsersScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        AppText(
-                          'النقاط: ${user.points}',
-                          isSmall: true,
-                        ),
+                        AppText('النقاط: ${user.points}', isSmall: true),
                         const SizedBox(width: AppDimensions.medium),
-                        AppText(
-                          'المستوى: ${user.level}',
-                          isSmall: true,
-                        ),
+                        AppText('المستوى: ${user.level}', isSmall: true),
                       ],
                     ),
                   ],
@@ -327,10 +318,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   ),
                   if (!user.isVerified)
                     IconButton(
-                      icon: const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                      ),
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
                       onPressed: () {
                         _showVerifyUserDialog(context, user);
                       },
@@ -347,58 +335,61 @@ class _UsersScreenState extends State<UsersScreen> {
   void _showBlockUserDialog(BuildContext context, AppUser user) {
     final isBlocked = user.isBlocked;
     final action = isBlocked ? 'إلغاء حظر' : 'حظر';
-    final message = isBlocked
-        ? 'هل أنت متأكد من إلغاء حظر المستخدم ${user.name}؟'
-        : 'هل أنت متأكد من حظر المستخدم ${user.name}؟';
+    final message =
+        isBlocked
+            ? 'هل أنت متأكد من إلغاء حظر المستخدم ${user.name}؟'
+            : 'هل أنت متأكد من حظر المستخدم ${user.name}؟';
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('$action المستخدم'),
-        content: AppText(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+      builder:
+          (context) => AlertDialog(
+            title: AppText('$action المستخدم'),
+            content: AppText(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<UserManagementCubit>().blockUser(
+                    user.id,
+                    !isBlocked,
+                  );
+                },
+                child: AppText(
+                  'تأكيد',
+                  color: isBlocked ? Colors.green : Colors.red,
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<UserManagementCubit>().blockUser(user.id, !isBlocked);
-            },
-            child: AppText(
-              'تأكيد',
-              color: isBlocked ? Colors.green : Colors.red,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   void _showVerifyUserDialog(BuildContext context, AppUser user) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: AppText('تفعيل المستخدم'),
-        content: AppText('هل أنت متأكد من تفعيل المستخدم ${user.name}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText('إلغاء'),
+      builder:
+          (context) => AlertDialog(
+            title: AppText('تفعيل المستخدم'),
+            content: AppText('هل أنت متأكد من تفعيل المستخدم ${user.name}؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<UserManagementCubit>().verifyUser(user.id);
+                },
+                child: AppText('تأكيد', color: Colors.green),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<UserManagementCubit>().verifyUser(user.id);
-            },
-            child: AppText(
-              'تأكيد',
-              color: Colors.green,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -134,11 +134,19 @@ class UserService {
   Future<List<Map<String, dynamic>>> getUsersPaginated({
     int limit = 20,
     int offset = 0,
+    String? searchQuery,
   }) async {
     try {
-      final response = await _supabase
-          .from('users')
-          .select()
+      var query = _supabase.from('users').select();
+
+      // Apply search filter if provided
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        query = query.or(
+          'name.ilike.%$searchQuery%,email.ilike.%$searchQuery%,phone_number.ilike.%$searchQuery%',
+        );
+      }
+
+      final response = await query
           .range(offset, offset + limit - 1)
           .order('created_at', ascending: false);
 
@@ -305,12 +313,12 @@ class UserService {
   Future<void> updateUserLevel(String userId, String levelName) async {
     try {
       log('UserService: Updating user $userId level to: $levelName');
-      
+
       await _supabase
           .from('users')
           .update({'level': levelName})
           .eq('id', userId);
-      
+
       log('UserService: Successfully updated user level to: $levelName');
     } catch (e) {
       log('UserService: Error updating user level: $e');
@@ -322,17 +330,17 @@ class UserService {
   Future<int> resetAllUsersToLevel(String levelName) async {
     try {
       print('🔄 Resetting all users to level: $levelName');
-      
+
       // Update all users to the specified level
       final response = await _supabase
           .from('users')
           .update({'level': levelName})
           .neq('is_admin', true) // Don't reset admin users
           .select('id');
-      
+
       final count = response.length;
       print('✅ Successfully reset $count users to level: $levelName');
-      
+
       return count;
     } catch (e) {
       print('❌ Error resetting users to level: $e');

@@ -251,8 +251,24 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           const Divider(height: AppDimensions.large),
           // User details
           _buildInfoRow('البريد الإلكتروني', _user!.email ?? '-'),
+          _buildInfoRow('رقم الهاتف', _user!.phoneNumber ?? '-'),
+          _buildInfoRow('الرقم القومي', _user!.nationalId ?? '-'),
+          _buildInfoRow('العنوان', _user!.address ?? '-'),
+          _buildInfoRow('الوظيفة', _user!.position ?? '-'),
           _buildInfoRow('النقاط', _user!.points.toString()),
           _buildInfoRow('المستوى', _user!.level),
+          const SizedBox(height: AppDimensions.small),
+          // Status indicators
+          _buildInfoRow(
+            'حالة الموافقة',
+            _user!.isApproved ? 'تمت الموافقة' : 'لم تتم الموافقة',
+          ),
+          _buildInfoRow(
+            'حالة التفعيل',
+            _user!.isVerified ? 'مفعل' : 'غير مفعل',
+          ),
+          _buildInfoRow('صلاحيات المدير', _user!.isAdmin ? 'نعم' : 'لا'),
+          _buildInfoRow('حالة الحظر', _user!.isBlocked ? 'محظور' : 'غير محظور'),
         ],
       ),
     );
